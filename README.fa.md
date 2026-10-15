@@ -35,7 +35,7 @@ bash build_manual.sh
 
 - جاوا خالص (فریم‌ورک اندروید) + Media3 ExoPlayer 1.11.1 — بدون کد AndroidX و بدون کاتلین
 - پکیج: `com.arman.spotplayer` · حداقل اندروید: ۸ (API 26) · هدف: اندروید ۱۴ (API 34)
-- نسخه فعلی: **۵.۶.۳** (versionCode 32)
+- نسخه فعلی: **۵.۶.۴** (versionCode 33)
 
 ## مجوز
 

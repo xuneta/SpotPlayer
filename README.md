@@ -39,7 +39,7 @@ Requirements: JDK 21, Android SDK platform 34 + build-tools 34.0.0. The Media3 A
 
 - Plain Java (Android framework) + Media3 ExoPlayer 1.11.1 — no AndroidX app code, no Kotlin
 - Package: `com.arman.spotplayer` · minSdk 26 · targetSdk 34
-- Current version: **5.6.3** (versionCode 32)
+- Current version: **5.6.4** (versionCode 33)
 
 ## License
 
