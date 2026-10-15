@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="liked"
+        android:enabled="true"
+        android:icon="@drawable/sc_liked"
+        android:shortcutShortLabel="@string/sc_liked"
+        android:shortcutLongLabel="@string/sc_liked">
+        <intent
+            android:action="com.arman.spotplayer.SHORTCUT"
+            android:targetPackage="com.arman.spotplayer"
+            android:targetClass="com.arman.spotplayer.MainActivity"
+            android:data="spotplayer://shortcut/liked" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="mix"
+        android:enabled="true"
+        android:icon="@drawable/sc_mix"
+        android:shortcutShortLabel="@string/sc_mix"
+        android:shortcutLongLabel="@string/sc_mix">
+        <intent
+            android:action="com.arman.spotplayer.SHORTCUT"
+            android:targetPackage="com.arman.spotplayer"
+            android:targetClass="com.arman.spotplayer.MainActivity"
+            android:data="spotplayer://shortcut/mix" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="shuffle"
+        android:enabled="true"
+        android:icon="@drawable/sc_shuffle"
+        android:shortcutShortLabel="@string/sc_shuffle"
+        android:shortcutLongLabel="@string/sc_shuffle">
+        <intent
+            android:action="com.arman.spotplayer.SHORTCUT"
+            android:targetPackage="com.arman.spotplayer"
+            android:targetClass="com.arman.spotplayer.MainActivity"
+            android:data="spotplayer://shortcut/shuffle" />
+    </shortcut>
+</shortcuts>

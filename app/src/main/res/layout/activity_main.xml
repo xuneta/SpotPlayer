@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/amoledBg">
+
+    <LinearLayout
+        android:id="@+id/mainContent"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <include
+                android:id="@+id/homeView"
+                layout="@layout/layout_home" />
+
+            <include
+                android:id="@+id/searchView"
+                layout="@layout/layout_search" />
+
+            <include
+                android:id="@+id/libraryView"
+                layout="@layout/layout_library" />
+        </FrameLayout>
+
+        <include
+            android:id="@+id/miniPlayer"
+            layout="@layout/layout_mini_player" />
+
+        <LinearLayout
+            android:id="@+id/bottomNav"
+            android:layout_width="match_parent"
+            android:layout_height="58dp"
+            android:background="?attr/amoledBg"
+            android:orientation="horizontal"
+            android:paddingTop="6dp">
+
+            <LinearLayout
+                android:id="@+id/navHome"
+                android:background="@drawable/row_selector"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:id="@+id/navHomeIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="Home"
+                    android:src="@drawable/ic_home_filled" />
+
+                <TextView
+                    android:id="@+id/navHomeLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="Home"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/navSearch"
+                android:background="@drawable/row_selector"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:id="@+id/navSearchIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="Search"
+                    android:src="@drawable/ic_search" />
+
+                <TextView
+                    android:id="@+id/navSearchLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="Search"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/navLibrary"
+                android:background="@drawable/row_selector"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:gravity="center_horizontal"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:id="@+id/navLibraryIcon"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:contentDescription="Your Library"
+                    android:src="@drawable/ic_library" />
+
+                <TextView
+                    android:id="@+id/navLibraryLabel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="Your Library"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <include
+        android:id="@+id/permissionView"
+        layout="@layout/layout_permission" />
+
+    <include
+        android:id="@+id/nowPlaying"
+        layout="@layout/layout_now_playing" />
+
+    <include
+        android:id="@+id/panelView"
+        layout="@layout/layout_panel" />
+
+    <include
+        android:id="@+id/eqView"
+        layout="@layout/layout_eq" />
+
+    <include
+        android:id="@+id/lyricsView"
+        layout="@layout/layout_lyrics" />
+
+    <include
+        android:id="@+id/dupView"
+        layout="@layout/layout_duplicates" />
+
+    <include
+        android:id="@+id/carView"
+        layout="@layout/layout_car" />
+</FrameLayout>

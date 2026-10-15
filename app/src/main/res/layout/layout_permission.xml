@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingStart="32dp"
+    android:paddingEnd="32dp">
+
+    <FrameLayout
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:layout_marginTop="72dp"
+        android:background="@drawable/bg_circle_green">
+
+        <ImageView
+            android:layout_width="52dp"
+            android:layout_height="52dp"
+            android:layout_gravity="center"
+            android:contentDescription="Music"
+            android:src="@drawable/ic_note"
+            android:tint="#121212" />
+    </FrameLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="28dp"
+        android:gravity="center"
+        android:text="Your music, right here"
+        android:textColor="@color/spotify_white"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:gravity="center"
+        android:lineSpacingMultiplier="1.25"
+        android:text="SpotPlayer needs access to the audio files on this phone so it can find and play your music. Your files never leave your device."
+        android:textColor="@color/spotify_gray"
+        android:textSize="15sp" />
+
+    <TextView
+        android:id="@+id/btnAllow"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="36dp"
+        android:background="@drawable/bg_green_btn"
+        android:paddingStart="36dp"
+        android:paddingEnd="36dp"
+        android:paddingTop="13dp"
+        android:paddingBottom="13dp"
+        android:text="Allow access"
+        android:textColor="#121212"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+</LinearLayout>

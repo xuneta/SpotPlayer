@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Theme-swappable background colors: normal theme keeps the Spotify
+         dark palette; the AMOLED variant maps them to pure/near black. -->
+    <attr name="amoledBg" format="color" />
+    <attr name="amoledSurface" format="color" />
+    <attr name="amoledCard" format="color" />
+</resources>

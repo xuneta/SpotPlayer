@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/spotify_black</item>
+        <item name="android:colorAccent">@color/spotify_green</item>
+        <item name="android:statusBarColor">@color/spotify_black</item>
+        <item name="android:navigationBarColor">@color/spotify_black</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="amoledBg">@color/spotify_black</item>
+        <item name="amoledSurface">@color/spotify_surface</item>
+        <item name="amoledCard">@color/spotify_card</item>
+    </style>
+
+    <style name="AppTheme.Amoled" parent="AppTheme">
+        <item name="android:windowBackground">#000000</item>
+        <item name="android:statusBarColor">#000000</item>
+        <item name="android:navigationBarColor">#000000</item>
+        <item name="amoledBg">#000000</item>
+        <item name="amoledSurface">#050505</item>
+        <item name="amoledCard">#0D0D0D</item>
+    </style>
+</resources>

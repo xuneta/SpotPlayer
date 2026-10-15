@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_widget"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="12dp">
+
+    <ImageView
+        android:id="@+id/widgetArt"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:contentDescription="Album art"
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_note" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widgetTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="SpotPlayer"
+            android:textColor="@color/spotify_white"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widgetArtist"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="Pick a song"
+            android:textColor="@color/spotify_gray"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/widgetPrev"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="Previous"
+        android:padding="8dp"
+        android:src="@drawable/ic_prev" />
+
+    <ImageView
+        android:id="@+id/widgetPlayIcon"
+        android:layout_width="46dp"
+        android:layout_height="46dp"
+        android:contentDescription="Play or pause"
+        android:padding="8dp"
+        android:src="@drawable/ic_play" />
+
+    <ImageView
+        android:id="@+id/widgetNext"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:contentDescription="Next"
+        android:padding="8dp"
+        android:src="@drawable/ic_next" />
+</LinearLayout>

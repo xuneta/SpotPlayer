@@ -1,0 +1,5 @@
+debug.keystore
+*.apk
+*.idsig
+build_manual/
+.gradle/

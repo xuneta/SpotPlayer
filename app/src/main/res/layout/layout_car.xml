@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:visibility="gone">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingStart="28dp"
+        android:paddingEnd="28dp"
+        android:paddingTop="22dp"
+        android:paddingBottom="28dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.14"
+                android:text="CAR MODE"
+                android:textColor="@color/spotify_gray"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <ImageView
+                android:id="@+id/carClose"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/bg_soft_circle"
+                android:contentDescription="Exit car mode"
+                android:padding="5dp"
+                android:src="@drawable/ic_chevron_down"
+                android:tint="@color/spotify_white" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/carArt"
+            android:layout_width="150dp"
+            android:layout_height="150dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="42dp"
+            android:background="@drawable/bg_art_rounded"
+            android:contentDescription="Album art"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_note" />
+
+        <TextView
+            android:id="@+id/carTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="36dp"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="2"
+            android:textColor="@color/spotify_white"
+            android:textSize="29sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/carArtist"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:ellipsize="end"
+            android:gravity="center"
+            android:maxLines="1"
+            android:textColor="@color/spotify_gray"
+            android:textSize="18sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="46dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/carPrev"
+                android:layout_width="78dp"
+                android:layout_height="78dp"
+                android:contentDescription="Previous"
+                android:padding="14dp"
+                android:src="@drawable/ic_prev"
+                android:tint="@color/spotify_white" />
+
+            <FrameLayout
+                android:id="@+id/carPlayBtn"
+                android:layout_width="106dp"
+                android:layout_height="106dp"
+                android:layout_marginStart="26dp"
+                android:layout_marginEnd="26dp"
+                android:background="@drawable/bg_circle_white">
+
+                <ImageView
+                    android:id="@+id/carPlayIcon"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="Play or pause"
+                    android:src="@drawable/ic_pause"
+                    android:tint="#121212" />
+            </FrameLayout>
+
+            <ImageView
+                android:id="@+id/carNext"
+                android:layout_width="78dp"
+                android:layout_height="78dp"
+                android:contentDescription="Next"
+                android:padding="14dp"
+                android:src="@drawable/ic_next"
+                android:tint="@color/spotify_white" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="42dp"
+            android:gravity="center"
+            android:text="Big buttons. Eyes on the road."
+            android:textColor="@color/spotify_gray"
+            android:textSize="13sp" />
+    </LinearLayout>
+</FrameLayout>
