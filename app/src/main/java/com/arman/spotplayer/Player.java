@@ -265,7 +265,22 @@ public class Player {
      */
     private void setPlayerVolume(ExoPlayer m, float v) {
         if (m == null) return;
-        try { m.setVolume(v); } catch (Exception ignored) {}
+        // v5.6.6: wakeFactor scales every engine volume during the wake-up ramp.
+        try { m.setVolume(v * wakeFactor); } catch (Exception ignored) {}
+    }
+
+    /** v5.6.6: re-apply the standing volumes (used by the wake-up ramp). */
+    private void reapplyVolumes() {
+        if (mp != null) setPlayerVolume(mp, effVol());
+        if (mpGapless != null && gapReady) setPlayerVolume(mpGapless, volFactorGap);
+    }
+
+    /** v5.6.6: any manual control cancels the wake-up volume ramp. */
+    private void cancelWakeRamp() {
+        if (wakeFactor >= 1f) return;
+        wakeFactor = 1f;
+        wakeHandler.removeCallbacks(wakeStep);
+        reapplyVolumes();
     }
 
     /** Balance-only change: update channel gains, then re-apply mono volumes. */
@@ -352,6 +367,16 @@ public class Player {
     private long sleepAtMs = 0;        // elapsedRealtime deadline, 0 = off
     private boolean sleepAtTrackEnd = false;
     private final Handler sleepHandler = new Handler(Looper.getMainLooper());
+    // v5.6.6 wake-up alarm: playback starts near-silent, ramps to full volume.
+    private float wakeFactor = 1f;
+    private final Handler wakeHandler = new Handler(Looper.getMainLooper());
+    private final Runnable wakeStep = new Runnable() {
+        @Override public void run() {
+            wakeFactor = Math.min(1f, wakeFactor + 0.025f);
+            reapplyVolumes();
+            if (wakeFactor < 1f) wakeHandler.postDelayed(this, 1000);
+        }
+    };
 
     public void setListener(Listener l) { this.listener = l; }
     public void setServiceListener(Listener l) { this.serviceListener = l; }
@@ -529,6 +554,7 @@ public class Player {
     // ----- transport -----
 
     public void play(Context ctx, List<Song> songs, int startIndex) {
+        cancelWakeRamp();
         queue = new ArrayList<>(songs);
         index = startIndex;
         startCurrent(ctx);
@@ -733,6 +759,7 @@ public class Player {
     }
 
     public void toggle(Context ctx) {
+        cancelWakeRamp();
         appCtx = ctx.getApplicationContext();
         if (mp == null) return;
         if (fading) {
@@ -1547,6 +1574,28 @@ public class Player {
         sleepHandler.removeCallbacksAndMessages(null);
         sleepAtMs = 0;
         sleepAtTrackEnd = false;
+    }
+
+    /** v5.6.6: the fixed sleep clock fired — same end state as the countdown. */
+    public void sleepNow() {
+        if (mp != null && mp.isPlaying() && appCtx != null) toggle(appCtx);
+        else fireState(false);
+    }
+
+    /** v5.6.6: the wake-up alarm fired — shuffle the whole library in,
+     *  starting near-silent and ramping to full volume over ~40 s. */
+    public void wakePlay(Context ctx) {
+        try {
+            List<Song> all = MusicLibrary.loadSongs(ctx);
+            if (all == null || all.isEmpty()) return;
+            List<Song> q = new ArrayList<>(all);
+            java.util.Collections.shuffle(q);
+            play(ctx, q, 0);
+            wakeFactor = 0.05f;
+            wakeHandler.removeCallbacks(wakeStep);
+            reapplyVolumes();
+            wakeHandler.postDelayed(wakeStep, 1000);
+        } catch (Exception ignored) {}
     }
 
     public boolean isSleepActive() { return sleepAtMs > 0 || sleepAtTrackEnd; }

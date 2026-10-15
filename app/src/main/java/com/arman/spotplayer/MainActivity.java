@@ -576,6 +576,14 @@ public class MainActivity extends Activity implements Player.Listener {
             setTheme(R.style.AppTheme_Amoled);
         }
         super.onCreate(savedInstanceState);
+        // v5.6.5: the UI is designed LTR (Spotify layout). On RTL locales
+        // (e.g. Persian) the system mirrors every layout and scrambles the
+        // player, so pin the window to LTR (manifest also sets
+        // supportsRtl=false).
+        try {
+            getWindow().getDecorView().setLayoutDirection(
+                    android.view.View.LAYOUT_DIRECTION_LTR);
+        } catch (Exception ignored) {}
         setContentView(R.layout.activity_main);
         bindViews();
         showCrashLogIfAny();
@@ -2014,7 +2022,11 @@ public class MainActivity extends Activity implements Player.Listener {
 
     private void showSleepDialog() {
         String[] labels = {"Off", "5 minutes", "10 minutes", "15 minutes",
-                "30 minutes", "45 minutes", "60 minutes", "End of track"};
+                "30 minutes", "45 minutes", "60 minutes", "End of track",
+                "Sleep clock: " + (ClockAlarms.sleepOn(this)
+                        ? fmtClock(ClockAlarms.sleepHour(this), ClockAlarms.sleepMinute(this)) + " (daily)" : "Off"),
+                "Wake alarm: " + (ClockAlarms.wakeOn(this)
+                        ? fmtClock(ClockAlarms.wakeHour(this), ClockAlarms.wakeMinute(this)) + " (daily)" : "Off")};
         int[] mins = {0, 5, 10, 15, 30, 45, 60, 0};
         int checked = 0;
         if (Player.get().isSleepAtTrackEnd()) {
@@ -2035,6 +2047,8 @@ public class MainActivity extends Activity implements Player.Listener {
         new AlertDialog.Builder(this)
                 .setTitle("Sleep timer")
                 .setSingleChoiceItems(labels, checked, (d, w) -> {
+                    if (w == 8) { d.dismiss(); showSleepClockDialog(); return; }
+                    if (w == 9) { d.dismiss(); showWakeAlarmDialog(); return; }
                     if (w == 7) Player.get().setSleepAtTrackEnd();
                     else if (w == 0) Player.get().cancelSleep();
                     else Player.get().setSleepInMinutes(mins[w]);
@@ -2045,8 +2059,74 @@ public class MainActivity extends Activity implements Player.Listener {
                 .show();
     }
 
+    // ----- v5.6.6: fixed sleep clock + wake alarm -----
+
+    private static String fmtClock(int h, int m) {
+        return String.format(java.util.Locale.US, "%02d:%02d", h, m);
+    }
+
+    private void showSleepClockDialog() {
+        if (!ClockAlarms.sleepOn(this)) { pickSleepClockTime(); return; }
+        new AlertDialog.Builder(this)
+                .setTitle("Sleep clock — " + fmtClock(ClockAlarms.sleepHour(this),
+                        ClockAlarms.sleepMinute(this)) + " daily")
+                .setItems(new String[]{"Change time", "Turn off"}, (d, w) -> {
+                    if (w == 0) pickSleepClockTime();
+                    else {
+                        ClockAlarms.setSleep(this, false,
+                                ClockAlarms.sleepHour(this), ClockAlarms.sleepMinute(this));
+                        Toast.makeText(this, "Sleep clock off", Toast.LENGTH_SHORT).show();
+                        updateSleepIcon();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void pickSleepClockTime() {
+        new android.app.TimePickerDialog(this, (v, h, m) -> {
+            ClockAlarms.setSleep(this, true, h, m);
+            Toast.makeText(this, "Sleep clock set for " + fmtClock(h, m),
+                    Toast.LENGTH_SHORT).show();
+            updateSleepIcon();
+            if (!ClockAlarms.canExact(this)) {
+                try {
+                    startActivity(new Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                            android.net.Uri.parse("package:" + getPackageName())));
+                } catch (Exception ignored) {}
+            }
+        }, ClockAlarms.sleepHour(this), ClockAlarms.sleepMinute(this), true).show();
+    }
+
+    private void showWakeAlarmDialog() {
+        if (!ClockAlarms.wakeOn(this)) { pickWakeAlarmTime(); return; }
+        new AlertDialog.Builder(this)
+                .setTitle("Wake alarm — " + fmtClock(ClockAlarms.wakeHour(this),
+                        ClockAlarms.wakeMinute(this)) + " daily")
+                .setItems(new String[]{"Change time", "Turn off"}, (d, w) -> {
+                    if (w == 0) pickWakeAlarmTime();
+                    else {
+                        ClockAlarms.setWake(this, false,
+                                ClockAlarms.wakeHour(this), ClockAlarms.wakeMinute(this));
+                        Toast.makeText(this, "Wake alarm off", Toast.LENGTH_SHORT).show();
+                        updateSleepIcon();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void pickWakeAlarmTime() {
+        new android.app.TimePickerDialog(this, (v, h, m) -> {
+            ClockAlarms.setWake(this, true, h, m);
+            Toast.makeText(this, "Wake alarm set for " + fmtClock(h, m),
+                    Toast.LENGTH_SHORT).show();
+            updateSleepIcon();
+        }, ClockAlarms.wakeHour(this), ClockAlarms.wakeMinute(this), true).show();
+    }
+
     private void updateSleepIcon() {
-        lastSleepActive = Player.get().isSleepActive();
+        lastSleepActive = Player.get().isSleepActive() || ClockAlarms.anyOn(this);
         if (npSleepBtn != null) {
             npSleepBtn.setColorFilter(getColor(lastSleepActive
                     ? R.color.spotify_green : R.color.spotify_gray));

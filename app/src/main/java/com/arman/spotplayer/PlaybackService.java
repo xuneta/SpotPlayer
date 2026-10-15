@@ -27,6 +27,9 @@ public class PlaybackService extends Service implements Player.Listener {
     public static final String ACTION_PREV = "com.arman.spotplayer.PREV";
     public static final String ACTION_SHUFFLE = "com.arman.spotplayer.SHUFFLE";
     public static final String ACTION_STOP = "com.arman.spotplayer.STOP";
+    // v5.6.6: fired by AlarmReceiver for the fixed sleep clock / wake alarm.
+    public static final String ACTION_SLEEP_FIRE = "com.arman.spotplayer.SLEEP_FIRE";
+    public static final String ACTION_WAKE_FIRE = "com.arman.spotplayer.WAKE_FIRE";
 
     private static final String CHANNEL_ID = "playback";
     private static final int NOTIF_ID = 1001;
@@ -171,6 +174,12 @@ public class PlaybackService extends Service implements Player.Listener {
                 case ACTION_SHUFFLE:
                     p.setShuffle(!p.isShuffle());
                     updateAll();
+                    break;
+                case ACTION_SLEEP_FIRE:
+                    p.sleepNow();
+                    break;
+                case ACTION_WAKE_FIRE:
+                    p.wakePlay(this);
                     break;
                 case ACTION_STOP:
                     p.stopFully(this);
