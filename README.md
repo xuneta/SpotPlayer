@@ -14,6 +14,10 @@ A Spotify-style Android music player for **your own local music library** — no
 - **Lyrics** — embedded tags and sidecar `.lrc` files, synced highlighting, online fallback via the free LRCLIB API with local caching, built-in lyrics editor
 - **Extras** — waveform seekbar, AMOLED pure-black theme, listening stats, car mode, home-screen widget, headset button controls, bookmarks for long tracks, built-in crash reporter (v5.6.1)
 
+## License
+
+MIT — see [LICENSE](LICENSE).
+
 ## Screenshots
 
 Install the APK and explore — the UI follows Spotify's layout and color language (dark `#121212`, accent green `#1ABC54`).
