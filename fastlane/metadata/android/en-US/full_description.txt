@@ -1,0 +1,11 @@
+SpotPlayer is a Spotify-style Android music player for your own local music library — no accounts, no streaming, no fake tracks. It reads the audio files already on your device (via MediaStore) and plays them with a serious playback engine and a familiar dark UI. The entire app ships as a ~760 KB APK — under 1 MB.
+
+Features:
+• Library — Songs, Artists, Albums, Genres, Recently Added, Top Rated, Most Played, Daily Mix, Liked Songs, playlists, grouped search, star ratings, duplicate finder
+• Playback engine — Media3 / ExoPlayer with three engines for crossfade and gapless playback, smart (favorites-weighted) shuffle, repeat modes, speed control, sleep timer, A–B repeat, shake-to-skip, trim silence, mini-player swipe gestures (drag up to expand, drag down to stop completely)
+• Sound — 10-band parametric EQ (Pro EQ) with limiter, AutoEq headphone profiles, per-output EQ, ReplayGain (from tags or the built-in scanner), loudness normalization, crossfade/gapless
+• Lyrics — synced LRC display with tap-to-seek, online lyrics via LRCLIB with offline cache, built-in lyrics editor
+• Covers — embedded covers plus optional online cover fetch (stored app-private, your files' tags are never modified)
+• Extras — waveform seekbar, AMOLED pure-black theme, listening stats, car mode, home-screen widget, headset button controls, bookmarks for long tracks, built-in crash reporter
+
+Open source (MIT), pure Java, built without Gradle.

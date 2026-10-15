@@ -1,0 +1,1 @@
+v5.6.4 — Fix: the Library chip row (Recent / Duplicates / Shuffle play / Sound) overflowed the screen and the Sound chip was clipped off-screen; the row is now horizontally scrollable. Includes v5.6.3's mini-player swipe gestures (drag up to expand to Now Playing, drag down to stop playback completely).
