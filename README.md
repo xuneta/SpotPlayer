@@ -4,6 +4,8 @@ A Spotify-style Android music player for **your own local music library** — no
 
 > 🇮🇷 Persian README: [README.fa.md](README.fa.md)
 
+> 📦 **Featherweight:** the entire app ships as a **~760 KB APK** — under 1 MB, with the full feature set below.
+
 ## Features
 
 - **Library** — Songs, Artists, Albums, Genres, Recently Added, Top Rated, Most Played, Daily Mix, Liked Songs, playlists (plus *save queue as playlist*), grouped search, star ratings, duplicate finder
