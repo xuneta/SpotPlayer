@@ -687,19 +687,104 @@ public class MainActivity extends Activity implements Player.Listener {
                 showNowPlaying();
             }
         });
-        final float[] swipeDownX = {0f};
+        // Mini-player gestures (MOTION_SPEC): horizontal swipe = next/prev,
+        // drag UP = expand to Now Playing, drag DOWN = dismiss + full stop.
+        // The bar follows the finger vertically; release settles with the
+        // spec's springs (350 ms emphasized back, 320 ms emphasized-accel out).
+        final float[] gDown = {0f, 0f};
+        final int[] gMode = {0}; // 0 undecided, 1 horizontal, 2 vertical
+        final android.view.VelocityTracker[] gVt = {null};
         miniPlayer.setOnTouchListener((v, e) -> {
-            if (e.getAction() == android.view.MotionEvent.ACTION_DOWN) {
-                swipeDownX[0] = e.getX();
-            } else if (e.getAction() == android.view.MotionEvent.ACTION_UP) {
-                float dx = e.getX() - swipeDownX[0];
-                if (Math.abs(dx) > dp(56) && Player.get().current() != null) {
-                    lastSwipeAt = android.os.SystemClock.uptimeMillis();
-                    if (dx < 0) Player.get().next(this);
-                    else Player.get().prev(this);
+            final float slop = dp(8);
+            switch (e.getActionMasked()) {
+                case android.view.MotionEvent.ACTION_DOWN:
+                    gDown[0] = e.getX();
+                    gDown[1] = e.getY();
+                    gMode[0] = 0;
+                    if (gVt[0] != null) gVt[0].recycle();
+                    gVt[0] = android.view.VelocityTracker.obtain();
+                    gVt[0].addMovement(e);
+                    return false;
+                case android.view.MotionEvent.ACTION_MOVE: {
+                    if (gVt[0] != null) gVt[0].addMovement(e);
+                    float dx = e.getX() - gDown[0];
+                    float dy = e.getY() - gDown[1];
+                    if (gMode[0] == 0 && Math.max(Math.abs(dx), Math.abs(dy)) > slop) {
+                        gMode[0] = Math.abs(dy) > Math.abs(dx) ? 2 : 1;
+                        if (gMode[0] == 2) v.animate().cancel();
+                    }
+                    if (gMode[0] == 2 && Player.get().current() != null) {
+                        float h = Math.max(v.getHeight(), 1);
+                        if (dy >= 0) {
+                            v.setTranslationY(dy);
+                            v.setAlpha(1f - 0.45f * Math.min(1f, dy / h));
+                        } else {
+                            v.setTranslationY(Math.max(dy * 0.55f, -dp(72)));
+                            v.setAlpha(1f);
+                        }
+                        return true;
+                    }
+                    return gMode[0] == 2;
                 }
+                case android.view.MotionEvent.ACTION_UP:
+                case android.view.MotionEvent.ACTION_CANCEL: {
+                    float dx = e.getX() - gDown[0];
+                    float dy = e.getY() - gDown[1];
+                    float vy = 0f;
+                    if (gVt[0] != null) {
+                        gVt[0].addMovement(e);
+                        gVt[0].computeCurrentVelocity(1000);
+                        vy = gVt[0].getYVelocity();
+                        gVt[0].recycle();
+                        gVt[0] = null;
+                    }
+                    boolean wasVertical = gMode[0] == 2;
+                    gMode[0] = 0;
+                    if (e.getActionMasked() == android.view.MotionEvent.ACTION_CANCEL) {
+                        if (wasVertical) {
+                            v.animate().translationY(0f).alpha(1f).setDuration(350)
+                                    .setInterpolator(new android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f))
+                                    .start();
+                        }
+                        return wasVertical;
+                    }
+                    if (wasVertical && Player.get().current() != null) {
+                        lastSwipeAt = android.os.SystemClock.uptimeMillis();
+                        float h = Math.max(v.getHeight(), 1);
+                        if (dy > h * 0.45f || (dy > dp(20) && vy > 800f)) {
+                            // dismiss: slide out, then stop playback completely
+                            v.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY);
+                            v.animate().translationY(h + dp(8)).alpha(0f).setDuration(320)
+                                    .setInterpolator(new android.view.animation.PathInterpolator(0.3f, 0f, 1f, 1f))
+                                    .withEndAction(() -> {
+                                        Player.get().stopFully(MainActivity.this);
+                                        v.setTranslationY(0f);
+                                        v.setAlpha(1f);
+                                    })
+                                    .start();
+                        } else if (dy < -dp(40) || (dy < -dp(16) && vy < -800f)) {
+                            // expand: settle back, Now Playing's own entrance carries it
+                            v.animate().translationY(0f).alpha(1f).setDuration(180)
+                                    .setInterpolator(new android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f))
+                                    .withEndAction(() -> showNowPlaying())
+                                    .start();
+                        } else {
+                            v.animate().translationY(0f).alpha(1f).setDuration(350)
+                                    .setInterpolator(new android.view.animation.PathInterpolator(0.2f, 0f, 0f, 1f))
+                                    .start();
+                        }
+                        return true;
+                    }
+                    if (Math.abs(dx) > dp(56) && Player.get().current() != null) {
+                        lastSwipeAt = android.os.SystemClock.uptimeMillis();
+                        if (dx < 0) Player.get().next(this);
+                        else Player.get().prev(this);
+                    }
+                    return false;
+                }
+                default:
+                    return false;
             }
-            return false;
         });
 
         nowPlaying = findViewById(R.id.nowPlaying);
@@ -1178,6 +1263,14 @@ public class MainActivity extends Activity implements Player.Listener {
     @Override
     public void onSongChanged(Song song) {
         runOnUiThread(() -> {
+            if (song == null) {
+                // full stop (mini-player swipe-down): everything winds down
+                miniPlayer.setVisibility(View.GONE);
+                if (nowPlaying.getVisibility() == View.VISIBLE) {
+                    nowPlaying.setVisibility(View.GONE);
+                }
+                return;
+            }
             if (panelView.getVisibility() == View.VISIBLE && panelMode == 2) {
                 panelSongs = Player.get().getQueue();
                 if (panelAdapter != null) panelAdapter.setSongs(panelSongs);

@@ -820,6 +820,26 @@ public class Player {
         if (mp != null && mp.isPlaying()) toggle(ctx);
     }
 
+    /**
+     * Full stop (mini-player swipe-down dismiss): playback ends completely —
+     * engines released, queue cleared, saved session wiped, so nothing resumes
+     * later. Listeners receive onSongChanged(null) + onPlayStateChanged(false).
+     */
+    public void stopFully(Context ctx) {
+        appCtx = ctx.getApplicationContext();
+        cancelFade();
+        rampToken++;
+        sleepAtMs = 0;
+        sleepAtTrackEnd = false;
+        try { sleepHandler.removeCallbacksAndMessages(null); } catch (Exception ignored) {}
+        releasePlayer();
+        queue.clear();
+        index = -1;
+        fireState(false);
+        fireSong(null);
+        saveSession();
+    }
+
     public void next(Context ctx) {
         if (queue.isEmpty()) return;
         cancelFade();

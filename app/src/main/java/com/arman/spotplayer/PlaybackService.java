@@ -173,7 +173,7 @@ public class PlaybackService extends Service implements Player.Listener {
                     updateAll();
                     break;
                 case ACTION_STOP:
-                    if (p.isPlaying()) p.toggle(this);
+                    p.stopFully(this);
                     stopForeground(true);
                     stopSelf();
                     return START_NOT_STICKY;
@@ -215,6 +215,14 @@ public class PlaybackService extends Service implements Player.Listener {
 
     @Override
     public void onSongChanged(Song song) {
+        if (song == null) {
+            // full stop (mini-player swipe-down): wind the service down
+            main.post(() -> {
+                stopForeground(true);
+                stopSelf();
+            });
+            return;
+        }
         main.post(() -> {
             currentArt = null;
             currentArtAlbum = -2;
