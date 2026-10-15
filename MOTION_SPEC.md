@@ -27,6 +27,6 @@ same published systems (Encore / Material), so this is how their feel is made.
 - Light haptic tick on transport controls
 - Page/tab change: fade-through (old fades out + scales to 0.96, new fades in)
 
-## Deliberate deviation (Arman's taste)
+## Deliberate deviation
 Press feedback runs slower/softer than stock tokens: 250 ms in, 500 ms out,
 with a soft halo instead of the Android ripple.

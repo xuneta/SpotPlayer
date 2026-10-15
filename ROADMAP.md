@@ -1,6 +1,6 @@
-# SpotPlayer roadmap — approved by Arman, 2026-10-14
+# SpotPlayer roadmap — 2026-10-14
 
-Method for EVERY item (Arman's standing rule): decompile/read the app that does it
+Method for EVERY item (standing project rule): decompile/read the app that does it
 best → learn its rules → implement ourselves per those rules. Open-source parts may be
 bundled as-is. No component transplants from closed apps.
 
