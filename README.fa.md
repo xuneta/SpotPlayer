@@ -6,6 +6,8 @@
 
 > 📦 **فوق‌سبک:** کل برنامه فقط یک APK حدود **۷۶۰ کیلوبایتی** است — زیر ۱ مگابایت، با همه قابلیت‌های زیر.
 
+[![Release](https://img.shields.io/github/v/release/xuneta/SpotPlayer)](https://github.com/xuneta/SpotPlayer/releases) [![Downloads](https://img.shields.io/github/downloads/xuneta/SpotPlayer/total)](https://github.com/xuneta/SpotPlayer/releases) [![License: MIT](https://img.shields.io/github/license/xuneta/SpotPlayer)](LICENSE) ![APK size](https://img.shields.io/badge/APK-~760_KB-brightgreen)
+
 ## قابلیت‌ها
 
 - **کتابخانه** — آهنگ‌ها، خواننده‌ها، آلبوم‌ها، ژانرها، تازه‌اضافه‌شده‌ها، برترین امتیازها (Top Rated)، پُربازدیدترین‌ها، Daily Mix، آهنگ‌های لایک‌شده، پلی‌لیست (به‌همراه «ذخیره صف به‌عنوان پلی‌لیست»)، جست‌وجوی گروهی، امتیاز ستاره‌ای، پیداکردن آهنگ‌های تکراری
@@ -17,6 +19,14 @@
 ## لایسنس
 
 MIT — فایل [LICENSE](LICENSE) را ببینید.
+
+## تصاویر
+
+<p align="center">
+  <img src="docs/screenshots/home.jpg" width="30%" alt="خانه">
+  <img src="docs/screenshots/library.jpg" width="30%" alt="کتابخانه شما">
+  <img src="docs/screenshots/equalizer.jpg" width="30%" alt="اکولایزر حرفه‌ای ۱۰ باند">
+</p>
 
 ## ساخت (Build)
 

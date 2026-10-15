@@ -6,6 +6,8 @@ A Spotify-style Android music player for **your own local music library** — no
 
 > 📦 **Featherweight:** the entire app ships as a **~760 KB APK** — under 1 MB, with the full feature set below.
 
+[![Release](https://img.shields.io/github/v/release/xuneta/SpotPlayer)](https://github.com/xuneta/SpotPlayer/releases) [![Downloads](https://img.shields.io/github/downloads/xuneta/SpotPlayer/total)](https://github.com/xuneta/SpotPlayer/releases) [![License: MIT](https://img.shields.io/github/license/xuneta/SpotPlayer)](LICENSE) ![APK size](https://img.shields.io/badge/APK-~760_KB-brightgreen)
+
 ## Features
 
 - **Library** — Songs, Artists, Albums, Genres, Recently Added, Top Rated, Most Played, Daily Mix, Liked Songs, playlists (plus *save queue as playlist*), grouped search, star ratings, duplicate finder
@@ -20,7 +22,11 @@ MIT — see [LICENSE](LICENSE).
 
 ## Screenshots
 
-Install the APK and explore — the UI follows Spotify's layout and color language (dark `#121212`, accent green `#1ABC54`).
+<p align="center">
+  <img src="docs/screenshots/home.jpg" width="30%" alt="Home">
+  <img src="docs/screenshots/library.jpg" width="30%" alt="Your Library">
+  <img src="docs/screenshots/equalizer.jpg" width="30%" alt="Pro EQ — 10-band parametric equalizer">
+</p>
 
 ## Building
 
