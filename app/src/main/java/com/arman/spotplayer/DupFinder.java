@@ -45,7 +45,7 @@ public final class DupFinder {
     private static final Pattern DASH_SUFFIX =
             Pattern.compile("\\s*[-–—]\\s*(remaster(ed)?(\\s*\\d{4})?|live|acoustic)$",
                     Pattern.CASE_INSENSITIVE);
-    private static final Pattern NON_ALNUM = Pattern.compile("[^a-z0-9\\s]+");
+    private static final Pattern NON_ALNUM = Pattern.compile("[^\\p{L}\\p{N}\\s]+");
     private static final Pattern SPACES = Pattern.compile("\\s+");
 
     private DupFinder() {}

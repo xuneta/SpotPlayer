@@ -553,7 +553,30 @@ public class Player {
 
     // ----- transport -----
 
+    private int errorStreak = 0;
+
+    /** A file that fails to decode used to fake-play in silence (null handler).
+     *  Now: tell the user and skip on — giving up after 3 failures in a row. */
+    private void onEngineError(Context ctx) {
+        errorStreak++;
+        final Context c = ctx != null ? ctx : appCtx;
+        if (c != null) {
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() ->
+                    android.widget.Toast.makeText(c,
+                            "Couldn't play that file — skipping",
+                            android.widget.Toast.LENGTH_SHORT).show());
+        }
+        if (errorStreak <= 3 && queue != null && queue.size() > 1 && c != null) {
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                try { next(c); } catch (Exception ignored) {}
+            });
+        } else {
+            fireState(false);
+        }
+    }
+
     public void play(Context ctx, List<Song> songs, int startIndex) {
+        errorStreak = 0;
         cancelWakeRamp();
         queue = new ArrayList<>(songs);
         index = startIndex;
@@ -610,7 +633,7 @@ public class Player {
             mp = makePlayer(0);
             mp.addListener(new EngineListener(mp,
                     () -> { if (fading) finalizeFade(); else onCompleted(fctx); },
-                    null));
+                    e -> onEngineError(fctx)));
             mp.setMediaItem(MediaItem.fromUri(s.uri));
             applySpeed(mp);
             setPlayerVolume(mp, volFactor);
@@ -995,7 +1018,7 @@ public class Player {
             mp = makePlayer(0);
             mp.addListener(new EngineListener(mp,
                     () -> { if (fading) finalizeFade(); else onCompleted(fctx); },
-                    null));
+                    e -> onEngineError(fctx)));
             mp.setMediaItem(MediaItem.fromUri(s.uri));
             applySpeed(mp);
             setPlayerVolume(mp, volFactor);
@@ -1192,7 +1215,7 @@ public class Player {
             mpNext = makePlayer(1);
             final Context fctx = appCtx;
             mpNext.addListener(new EngineListener(mpNext,
-                    () -> onCompleted(fctx), null));
+                    () -> onCompleted(fctx), e -> onEngineError(fctx)));
             mpNext.setMediaItem(MediaItem.fromUri(nextSong.uri));
             applySpeed(mpNext);
             setPlayerVolume(mpNext, 0f);
@@ -1587,7 +1610,12 @@ public class Player {
     public void wakePlay(Context ctx) {
         try {
             List<Song> all = MusicLibrary.loadSongs(ctx);
-            if (all == null || all.isEmpty()) return;
+            if (all == null || all.isEmpty()) {
+                // No music to wake up to: fall back to the system alarm tone
+                // instead of silently doing nothing.
+                soundDefaultAlarm(ctx);
+                return;
+            }
             List<Song> q = new ArrayList<>(all);
             java.util.Collections.shuffle(q);
             play(ctx, q, 0);
@@ -1595,6 +1623,26 @@ public class Player {
             wakeHandler.removeCallbacks(wakeStep);
             reapplyVolumes();
             wakeHandler.postDelayed(wakeStep, 1000);
+        } catch (Exception ignored) {}
+    }
+
+    private void soundDefaultAlarm(Context ctx) {
+        try {
+            android.net.Uri uri = android.media.RingtoneManager
+                    .getDefaultUri(android.media.RingtoneManager.TYPE_ALARM);
+            if (uri == null) uri = android.media.RingtoneManager
+                    .getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE);
+            if (uri == null) return;
+            final android.media.MediaPlayer rp = new android.media.MediaPlayer();
+            rp.setDataSource(ctx, uri);
+            rp.setAudioStreamType(android.media.AudioManager.STREAM_ALARM);
+            rp.setLooping(true);
+            rp.prepare();
+            rp.start();
+            new android.os.Handler(android.os.Looper.getMainLooper())
+                    .postDelayed(() -> {
+                        try { rp.stop(); rp.release(); } catch (Exception ignored) {}
+                    }, 60_000);
         } catch (Exception ignored) {}
     }
 

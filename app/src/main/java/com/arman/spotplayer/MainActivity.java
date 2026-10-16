@@ -58,6 +58,8 @@ public class MainActivity extends Activity implements Player.Listener {
 
     private List<Song> allSongs = new ArrayList<>();
     private SongAdapter homeAdapter, libraryAdapter;
+    private View homeHeader;
+    private boolean homeHeaderAdded;
     private SearchAdapter searchAdapter;
     private QuickAdapter quickAdapter;
     // ----- library sort (v5.3): per-page sort keys, persisted in "libsort" prefs -----
@@ -595,8 +597,7 @@ public class MainActivity extends Activity implements Player.Listener {
         } else {
             permissionView.setVisibility(View.VISIBLE);
             mainContent.setVisibility(View.GONE);
-            findViewById(R.id.btnAllow).setOnClickListener(v ->
-                    requestPermissions(new String[]{audioPermission()}, REQ_AUDIO));
+            findViewById(R.id.btnAllow).setOnClickListener(v -> onAllowAccessClicked());
         }
 
         Player.get().setListener(this);
@@ -649,6 +650,30 @@ public class MainActivity extends Activity implements Player.Listener {
     private boolean hasAudioPermission() {
         return checkSelfPermission(audioPermission()) == PackageManager.PERMISSION_GRANTED;
     }
+
+    /** "Allow access" tap. After a permanent denial ("Don't ask again") the system
+     *  silently ignores requestPermissions — send the user to the app settings
+     *  page instead of leaving a dead button. */
+    private void onAllowAccessClicked() {
+        boolean asked = getSharedPreferences("ui", MODE_PRIVATE)
+                .getBoolean("perm_asked", false);
+        if (asked && !shouldShowRequestPermissionRationale(audioPermission())) {
+            android.widget.Toast.makeText(this,
+                    "Permission is off. Turn on \u201CMusic and audio\u201D in Settings.",
+                    android.widget.Toast.LENGTH_LONG).show();
+            try {
+                startActivity(new Intent(
+                        android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:" + getPackageName())));
+            } catch (Exception ignored) {}
+            return;
+        }
+        getSharedPreferences("ui", MODE_PRIVATE).edit()
+                .putBoolean("perm_asked", true).apply();
+        requestPermissions(new String[]{audioPermission()}, REQ_AUDIO);
+    }
+
+
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions,
@@ -973,6 +998,12 @@ public class MainActivity extends Activity implements Player.Listener {
                 abB = pos;
                 npAb.setText("A–B on");
                 npAb.setTextColor(getColor(R.color.spotify_green));
+            } else if (abB < 0) {
+                // Second tap landed before A: move A here instead of silently resetting
+                abA = pos;
+                android.widget.Toast.makeText(this,
+                        "Loop start moved — tap A–B again at the end point",
+                        android.widget.Toast.LENGTH_SHORT).show();
             } else {
                 resetAb();
             }
@@ -1080,7 +1111,11 @@ public class MainActivity extends Activity implements Player.Listener {
 
         // Home: one ListView with a Spotify-style header (greeting + quick picks + section title)
         ListView homeList = findViewById(R.id.homeList);
-        View header = LayoutInflater.from(this).inflate(R.layout.layout_home_header, homeList, false);
+        if (homeHeader == null) {
+            homeHeader = LayoutInflater.from(this)
+                    .inflate(R.layout.layout_home_header, homeList, false);
+        }
+        View header = homeHeader;
         int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
         String greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
         ((TextView) header.findViewById(R.id.greetingText)).setText(greeting);
@@ -1112,7 +1147,10 @@ public class MainActivity extends Activity implements Player.Listener {
             buildShelf();
             buildForgotten();
         }
-        homeList.addHeaderView(header);
+        if (!homeHeaderAdded) {
+            homeList.addHeaderView(header);
+            homeHeaderAdded = true;
+        }
         homeAdapter = new SongAdapter(this, new ArrayList<>(allSongs));
         homeList.setAdapter(homeAdapter);
         styleHomeChips(homeChips, 0);
@@ -2090,6 +2128,9 @@ public class MainActivity extends Activity implements Player.Listener {
                     Toast.LENGTH_SHORT).show();
             updateSleepIcon();
             if (!ClockAlarms.canExact(this)) {
+                Toast.makeText(this,
+                        "Exact-alarm permission is off — the sleep clock may stop late. Allow it on the next screen.",
+                        Toast.LENGTH_LONG).show();
                 try {
                     startActivity(new Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
                             android.net.Uri.parse("package:" + getPackageName())));
@@ -4457,6 +4498,13 @@ public class MainActivity extends Activity implements Player.Listener {
     protected void onResume() {
         super.onResume();
         updateShake();
+        // Coming back from system Settings with the permission granted
+        if (permissionView != null && permissionView.getVisibility() == View.VISIBLE
+                && hasAudioPermission()) {
+            permissionView.setVisibility(View.GONE);
+            mainContent.setVisibility(View.VISIBLE);
+            initLibrary();
+        }
     }
 
     @Override
