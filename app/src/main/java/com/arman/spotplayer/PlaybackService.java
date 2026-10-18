@@ -268,7 +268,7 @@ public class PlaybackService extends Service implements Player.Listener {
         @Override public void run() {
             try {
                 Song cur = Player.get().current();
-                if (cur != null) {
+                if (cur != null && Player.get().isPlaying()) {
                     updateMetadata(cur);
                     updatePlaybackState();
                     main.postDelayed(this, 2000);
@@ -281,6 +281,7 @@ public class PlaybackService extends Service implements Player.Listener {
 
     private void ensureTicker() {
         if (tickerOn) return;
+        if (!Player.get().isPlaying()) return;
         tickerOn = true;
         main.removeCallbacks(stateTicker);
         main.postDelayed(stateTicker, 1200);
@@ -290,7 +291,12 @@ public class PlaybackService extends Service implements Player.Listener {
     public void onPlayStateChanged(boolean playing) {
         main.post(() -> {
             updateAll();
-            ensureTicker();
+            if (playing) {
+                ensureTicker();
+            } else {
+                main.removeCallbacks(stateTicker);
+                tickerOn = false;
+            }
         });
     }
 
@@ -349,6 +355,9 @@ public class PlaybackService extends Service implements Player.Listener {
         b.addAction(new Notification.Action.Builder(
                 Icon.createWithResource(this, R.drawable.ic_next),
                 "Next", actionIntent(ACTION_NEXT, 4)).build());
+        b.addAction(new Notification.Action.Builder(
+                Icon.createWithResource(this, R.drawable.ic_close),
+                "Stop", actionIntent(ACTION_STOP, 5)).build());
         if (session != null) {
             b.setStyle(new Notification.MediaStyle()
                     .setMediaSession(session.getSessionToken())
