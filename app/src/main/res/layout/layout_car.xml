@@ -2,7 +2,7 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000"
+    android:background="@color/spotify_trueblack"
     android:visibility="gone">
 
     <LinearLayout
@@ -24,7 +24,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:letterSpacing="0.14"
-                android:text="CAR MODE"
+                android:text="@string/auto_car_mode"
                 android:textColor="@color/spotify_gray"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -36,11 +36,11 @@
 
             <ImageView
                 android:id="@+id/carClose"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:background="@drawable/bg_soft_circle"
-                android:contentDescription="Exit car mode"
-                android:padding="5dp"
+                android:contentDescription="@string/auto_exit_car_mode"
+                android:padding="11dp"
                 android:src="@drawable/ic_chevron_down"
                 android:tint="@color/spotify_white" />
         </LinearLayout>
@@ -52,7 +52,7 @@
             android:layout_gravity="center_horizontal"
             android:layout_marginTop="42dp"
             android:background="@drawable/bg_art_rounded"
-            android:contentDescription="Album art"
+            android:contentDescription="@string/auto_album_art"
             android:scaleType="centerCrop"
             android:src="@drawable/ic_note" />
 
@@ -90,7 +90,7 @@
                 android:id="@+id/carPrev"
                 android:layout_width="78dp"
                 android:layout_height="78dp"
-                android:contentDescription="Previous"
+                android:contentDescription="@string/auto_previous"
                 android:padding="14dp"
                 android:src="@drawable/ic_prev"
                 android:tint="@color/spotify_white" />
@@ -108,16 +108,16 @@
                     android:layout_width="52dp"
                     android:layout_height="52dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Play or pause"
+                    android:contentDescription="@string/auto_play_or_pause"
                     android:src="@drawable/ic_pause"
-                    android:tint="#121212" />
+                    android:tint="@color/spotify_black" />
             </FrameLayout>
 
             <ImageView
                 android:id="@+id/carNext"
                 android:layout_width="78dp"
                 android:layout_height="78dp"
-                android:contentDescription="Next"
+                android:contentDescription="@string/auto_next"
                 android:padding="14dp"
                 android:src="@drawable/ic_next"
                 android:tint="@color/spotify_white" />
@@ -128,7 +128,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="42dp"
             android:gravity="center"
-            android:text="Big buttons. Eyes on the road."
+            android:text="@string/auto_big_buttons_eyes_on_the_road"
             android:textColor="@color/spotify_gray"
             android:textSize="13sp" />
     </LinearLayout>

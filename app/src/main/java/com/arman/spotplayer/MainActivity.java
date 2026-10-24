@@ -876,11 +876,13 @@ public class MainActivity extends Activity implements Player.Listener {
             boolean s = !Player.get().isShuffle();
             Player.get().setShuffle(s);
             tintToggle(npShuffle, s);
+            npShuffle.setContentDescription(s ? "Shuffle on" : "Shuffle off");
             updateNextUp();
         });
         findViewById(R.id.npRepeatBtn).setOnClickListener(v -> {
             int r = Player.get().cycleRepeat();
             tintToggle(npRepeat, r != 0);
+            npRepeat.setContentDescription(r == 1 ? "Repeat all" : r == 2 ? "Repeat one" : "Repeat off");
             npRepeatBadge.setVisibility(r == 2 ? View.VISIBLE : View.GONE);
             updateNextUp();
         });
@@ -948,7 +950,9 @@ public class MainActivity extends Activity implements Player.Listener {
             }
         });
         softPress(miniPlay);
-        softPress(findViewById(R.id.npPlayBtn));
+        // bgView=null: npPlayBtn's background IS the solid white circle — the halo
+        // fade would set its alpha to 0 and make the play/pause button invisible.
+        softPress(findViewById(R.id.npPlayBtn), findViewById(R.id.npPlayBtn), null);
         softPress(findViewById(R.id.npNext));
         softPress(findViewById(R.id.npPrev));
         softPress(npShuffle);
@@ -1096,7 +1100,7 @@ public class MainActivity extends Activity implements Player.Listener {
                 g.setCornerRadius(dp(16));
                 g.setColor(getColor(R.color.spotify_green));
                 chips[i].setBackground(g);
-                chips[i].setTextColor(0xFF000000);
+                chips[i].setTextColor(android.graphics.Color.BLACK);
             } else {
                 chips[i].setBackgroundResource(R.drawable.bg_sort_chip);
                 chips[i].setTextColor(getColor(R.color.spotify_white));
@@ -1153,6 +1157,16 @@ public class MainActivity extends Activity implements Player.Listener {
         }
         homeAdapter = new SongAdapter(this, new ArrayList<>(allSongs));
         homeList.setAdapter(homeAdapter);
+        View homeShuffleBtn = header.findViewById(R.id.homeShuffleBtn);
+        if (homeShuffleBtn != null) {
+            homeShuffleBtn.setVisibility(empty ? View.GONE : View.VISIBLE);
+            homeShuffleBtn.setOnClickListener(v -> {
+                if (allSongs.isEmpty()) return;
+                Player.get().setShuffle(true);
+                int start = new java.util.Random().nextInt(allSongs.size());
+                Player.get().play(this, allSongs, start);
+            });
+        }
         styleHomeChips(homeChips, 0);
         chipAll.setOnClickListener(v -> {
             styleHomeChips(homeChips, 0);
@@ -1357,6 +1371,7 @@ public class MainActivity extends Activity implements Player.Listener {
         v.animate().scaleX(0.7f).scaleY(0.7f).alpha(0.3f).setDuration(90)
                 .withEndAction(() -> {
                     v.setImageResource(icon);
+                    v.setContentDescription(icon == R.drawable.ic_pause ? "Pause" : "Play");
                     v.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(200).start();
                 }).start();
     }
@@ -1423,8 +1438,12 @@ public class MainActivity extends Activity implements Player.Listener {
         requestWaveform(s);
         npPlayIcon.setImageResource(Player.get().isPlaying()
                 ? R.drawable.ic_pause : R.drawable.ic_play);
+        npPlayIcon.setContentDescription(Player.get().isPlaying() ? "Pause" : "Play");
         tintToggle(npShuffle, Player.get().isShuffle());
         tintToggle(npRepeat, Player.get().getRepeat() != 0);
+        npShuffle.setContentDescription(Player.get().isShuffle() ? "Shuffle on" : "Shuffle off");
+        int rp = Player.get().getRepeat();
+        npRepeat.setContentDescription(rp == 1 ? "Repeat all" : rp == 2 ? "Repeat one" : "Repeat off");
         npRepeatBadge.setVisibility(Player.get().getRepeat() == 2 ? View.VISIBLE : View.GONE);
         updateLikeIcon(s);
         updateNpStars(s);
@@ -3170,9 +3189,11 @@ public class MainActivity extends Activity implements Player.Listener {
         if (isLiked(s)) {
             npLike.setImageResource(R.drawable.ic_heart_filled);
             npLike.setColorFilter(getColor(R.color.spotify_green));
+            npLike.setContentDescription("Liked");
         } else {
             npLike.setImageResource(R.drawable.ic_heart_outline);
             npLike.setColorFilter(getColor(R.color.spotify_gray));
+            npLike.setContentDescription("Like");
         }
     }
 
@@ -4405,7 +4426,7 @@ public class MainActivity extends Activity implements Player.Listener {
                 Bitmap card = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888);
                 android.graphics.Canvas cv = new android.graphics.Canvas(card);
                 int bg = s.albumId >= 0
-                        ? darken(MusicLibrary.tintFor(s.albumId), 0.30f) : 0xFF181818;
+                        ? darken(MusicLibrary.tintFor(s.albumId), 0.30f) : getColor(R.color.spotify_surface);
                 cv.drawColor(bg);
                 android.graphics.Paint p = new android.graphics.Paint(
                         android.graphics.Paint.ANTI_ALIAS_FLAG);
@@ -4413,7 +4434,7 @@ public class MainActivity extends Activity implements Player.Listener {
                     Bitmap scaled = Bitmap.createScaledBitmap(art, 780, 780, true);
                     cv.drawBitmap(scaled, (W - 780) / 2f, 90, p);
                 } else {
-                    p.setColor(0xFF282828);
+                    p.setColor(getColor(R.color.spotify_card));
                     cv.drawRoundRect(new android.graphics.RectF(150, 90, 930, 870),
                             24, 24, p);
                 }
@@ -4423,9 +4444,9 @@ public class MainActivity extends Activity implements Player.Listener {
                         android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD));
                 drawFitted(cv, s.title, W / 2f, 968, 940, p, 58);
                 p.setTypeface(android.graphics.Typeface.DEFAULT);
-                p.setColor(0xFFB3B3B3);
+                p.setColor(getColor(R.color.spotify_gray));
                 drawFitted(cv, s.artist, W / 2f, 1022, 940, p, 40);
-                p.setColor(0xFF8A8A8A);
+                p.setColor(getColor(R.color.spotify_midgray));
                 p.setTextSize(26);
                 p.setLetterSpacing(0.35f);
                 cv.drawText("SPOTPLAYER", W / 2f, 1062, p);
@@ -4633,7 +4654,7 @@ public class MainActivity extends Activity implements Player.Listener {
                 int H = 1080;
                 Bitmap card = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888);
                 android.graphics.Canvas cv = new android.graphics.Canvas(card);
-                cv.drawColor(0xFF121212);
+                cv.drawColor(getColor(R.color.spotify_black));
                 android.graphics.Paint p = new android.graphics.Paint(
                         android.graphics.Paint.ANTI_ALIAS_FLAG);
                 p.setTextAlign(android.graphics.Paint.Align.LEFT);
@@ -4644,7 +4665,7 @@ public class MainActivity extends Activity implements Player.Listener {
                 cv.drawText("Your Stats", 80, 170, p);
                 float y = 320;
                 for (String[] r : rows) {
-                    p.setColor(0xFFB3B3B3);
+                    p.setColor(getColor(R.color.spotify_gray));
                     p.setTypeface(android.graphics.Typeface.DEFAULT);
                     p.setTextSize(38);
                     cv.drawText(r[0], 80, y, p);
@@ -4654,7 +4675,7 @@ public class MainActivity extends Activity implements Player.Listener {
                     drawFittedLeft(cv, r[1], 80, y + 62, 920, p, 52);
                     y += 140;
                 }
-                p.setColor(0xFF8A8A8A);
+                p.setColor(getColor(R.color.spotify_midgray));
                 p.setTypeface(android.graphics.Typeface.DEFAULT);
                 p.setTextSize(26);
                 p.setLetterSpacing(0.35f);

@@ -11,7 +11,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="16dp"
-        android:text="Search"
+        android:text="@string/auto_search"
         android:textColor="@color/spotify_white"
         android:textSize="24sp"
         android:textStyle="bold" />
@@ -28,9 +28,9 @@
         <ImageView
             android:layout_width="20dp"
             android:layout_height="20dp"
-            android:contentDescription="Search"
+            android:contentDescription="@string/auto_search"
             android:src="@drawable/ic_search"
-            android:tint="#121212" />
+            android:tint="@color/spotify_black" />
 
         <EditText
             android:id="@+id/searchInput"
@@ -39,14 +39,14 @@
             android:layout_marginStart="10dp"
             android:layout_weight="1"
             android:background="@null"
-            android:hint="What do you want to listen to?"
+            android:hint="@string/auto_what_do_you_want_to_listen_to"
             android:imeOptions="actionSearch"
             android:inputType="text"
             android:maxLines="1"
             android:paddingTop="11dp"
             android:paddingBottom="11dp"
-            android:textColor="#121212"
-            android:textColorHint="#5A5A5A"
+            android:textColor="@color/spotify_black"
+            android:textColorHint="@color/search_hint"
             android:textSize="15sp" />
     </LinearLayout>
 
@@ -56,7 +56,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="48dp"
         android:gravity="center"
-        android:text="No results found for that search."
+        android:text="@string/auto_no_results_found_for_that_search"
         android:textColor="@color/spotify_gray"
         android:textSize="15sp"
         android:visibility="gone" />

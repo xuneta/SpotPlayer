@@ -54,7 +54,7 @@
                     android:id="@+id/navHomeIcon"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:contentDescription="Home"
+                    android:contentDescription="@string/auto_home"
                     android:src="@drawable/ic_home_filled" />
 
                 <TextView
@@ -62,7 +62,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
-                    android:text="Home"
+                    android:text="@string/auto_home"
                     android:textSize="11sp" />
             </LinearLayout>
 
@@ -79,7 +79,7 @@
                     android:id="@+id/navSearchIcon"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:contentDescription="Search"
+                    android:contentDescription="@string/auto_search"
                     android:src="@drawable/ic_search" />
 
                 <TextView
@@ -87,7 +87,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
-                    android:text="Search"
+                    android:text="@string/auto_search"
                     android:textSize="11sp" />
             </LinearLayout>
 
@@ -104,7 +104,7 @@
                     android:id="@+id/navLibraryIcon"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
-                    android:contentDescription="Your Library"
+                    android:contentDescription="@string/auto_your_library"
                     android:src="@drawable/ic_library" />
 
                 <TextView
@@ -112,7 +112,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="3dp"
-                    android:text="Your Library"
+                    android:text="@string/auto_your_library"
                     android:textSize="11sp" />
             </LinearLayout>
         </LinearLayout>

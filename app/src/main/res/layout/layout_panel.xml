@@ -22,11 +22,11 @@
 
             <ImageView
                 android:id="@+id/panelBack"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:background="@drawable/bg_soft_circle"
-                android:contentDescription="Back"
-                android:padding="4dp"
+                android:contentDescription="@string/auto_back"
+                android:padding="13dp"
                 android:rotation="90"
                 android:src="@drawable/ic_chevron_down"
                 android:tint="@color/spotify_white" />
@@ -79,9 +79,9 @@
                     android:layout_width="26dp"
                     android:layout_height="26dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Play"
+                    android:contentDescription="@string/auto_play"
                     android:src="@drawable/ic_play"
-                    android:tint="#121212" />
+                    android:tint="@color/spotify_black" />
             </FrameLayout>
 
             <LinearLayout
@@ -102,7 +102,7 @@
                     android:id="@+id/panelShuffleIcon"
                     android:layout_width="16dp"
                     android:layout_height="16dp"
-                    android:contentDescription="Shuffle"
+                    android:contentDescription="@string/auto_shuffle"
                     android:src="@drawable/ic_shuffle"
                     android:tint="@color/spotify_gray" />
 
@@ -110,7 +110,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
-                    android:text="Shuffle"
+                    android:text="@string/auto_shuffle"
                     android:textColor="@color/spotify_white"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -126,7 +126,7 @@
                 android:paddingEnd="14dp"
                 android:paddingTop="6dp"
                 android:paddingBottom="6dp"
-                android:text="A–Z"
+                android:text="@string/auto_a_z"
                 android:textColor="@color/spotify_white"
                 android:textSize="13sp"
                 android:visibility="gone" />
@@ -149,7 +149,7 @@
                 <ImageView
                     android:layout_width="16dp"
                     android:layout_height="16dp"
-                    android:contentDescription="Save queue as playlist"
+                    android:contentDescription="@string/auto_save_queue_as_playlist"
                     android:src="@drawable/ic_plus"
                     android:tint="@color/spotify_white" />
 
@@ -157,7 +157,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
-                    android:text="Save"
+                    android:text="@string/auto_save"
                     android:textColor="@color/spotify_white"
                     android:textSize="13sp"
                     android:textStyle="bold" />

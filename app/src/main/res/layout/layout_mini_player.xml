@@ -21,7 +21,7 @@
             android:layout_width="40dp"
             android:layout_height="40dp"
             android:background="@drawable/bg_art_rounded_sm"
-            android:contentDescription="Album art"
+            android:contentDescription="@string/auto_album_art"
             android:scaleType="centerCrop"
             android:src="@drawable/ic_note" />
 
@@ -55,10 +55,10 @@
         <ImageView
             android:id="@+id/miniPlay"
             android:background="@drawable/bg_soft_circle"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
-            android:contentDescription="Play or pause"
-            android:padding="5dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/auto_play_or_pause"
+            android:padding="11dp"
             android:src="@drawable/ic_play"
             android:tint="@color/spotify_white" />
     </LinearLayout>

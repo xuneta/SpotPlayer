@@ -10,7 +10,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="72dp"
         android:gravity="center"
-        android:text="No songs found on this phone yet.\nMusic you add will show up here."
+        android:text="@string/auto_no_songs_found_on_this_phone_yet_nmusic"
         android:textColor="@color/spotify_gray"
         android:textSize="15sp"
         android:visibility="gone" />

@@ -36,13 +36,14 @@ public class PlaybackService extends Service implements Player.Listener {
 
     private MediaSession session;
     private final Handler main = new Handler(Looper.getMainLooper());
+    private boolean destroyed = false;
 
     /** Pause when headphones are unplugged / Bluetooth disconnects mid-play. */
     private final android.content.BroadcastReceiver noisyReceiver =
             new android.content.BroadcastReceiver() {
                 @Override public void onReceive(android.content.Context c, Intent i) {
                     if (android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY
-                            .equals(i.getAction()) && Player.get().isPlaying()) {
+                            .equals(i.getAction()) && Player.get().wantsPlay()) {
                         Player.get().pause(PlaybackService.this);
                     }
                 }
@@ -65,6 +66,7 @@ public class PlaybackService extends Service implements Player.Listener {
     private int hookClicks = 0;
     private final Runnable hookRunner = new Runnable() {
         @Override public void run() {
+            if (destroyed) return;
             int c = hookClicks;
             hookClicks = 0;
             if (c == 1) {
@@ -101,10 +103,11 @@ public class PlaybackService extends Service implements Player.Listener {
         session = new MediaSession(this, "SpotPlayer");
         session.setCallback(new MediaSession.Callback() {
             @Override public void onPlay() {
-                if (!Player.get().isPlaying()) Player.get().toggle(PlaybackService.this);
+                // Intent-based: also resumes while buffering / mid pause-ramp.
+                Player.get().resume(PlaybackService.this);
             }
             @Override public void onPause() {
-                if (Player.get().isPlaying()) Player.get().toggle(PlaybackService.this);
+                if (Player.get().wantsPlay()) Player.get().pause(PlaybackService.this);
             }
             @Override public void onSkipToNext() { Player.get().next(PlaybackService.this); }
             @Override public void onSkipToPrevious() { Player.get().prev(PlaybackService.this); }
@@ -113,7 +116,7 @@ public class PlaybackService extends Service implements Player.Listener {
                 main.post(PlaybackService.this::updatePlaybackState);
             }
             @Override public void onStop() {
-                if (Player.get().isPlaying()) Player.get().toggle(PlaybackService.this);
+                if (Player.get().wantsPlay()) Player.get().pause(PlaybackService.this);
             }
             @Override public boolean onMediaButtonEvent(Intent mediaButtonIntent) {
                 try {
@@ -154,6 +157,15 @@ public class PlaybackService extends Service implements Player.Listener {
         } catch (Exception ignored) {}
         Player.get().setServiceListener(this);
         startForeground(NOTIF_ID, buildNotification());
+        // If the service is (re)created while a song is already loaded,
+        // initialize the session/notification for it right away instead of
+        // waiting for the next track change.
+        Song cur = Player.get().current();
+        if (cur != null) {
+            updateMetadata(cur);
+            updateAll();
+            if (Player.get().isPlaying()) ensureTicker();
+        }
     }
 
     @Override
@@ -201,17 +213,28 @@ public class PlaybackService extends Service implements Player.Listener {
 
     @Override
     public void onDestroy() {
-        try { unregisterReceiver(noisyReceiver); } catch (Exception ignored) {}
-        Player p = Player.get();
-        if (p.isPlaying()) p.toggle(this);
-        p.setServiceListener(null);
-        p.onServiceDestroyed();
-        main.removeCallbacks(stateTicker);
+        destroyed = true;
+
+        main.removeCallbacksAndMessages(null);
         tickerOn = false;
+        hookClicks = 0;
+
+        try {
+            unregisterReceiver(noisyReceiver);
+        } catch (Exception ignored) {
+        }
+
+        Player player = Player.get();
+        player.setServiceListener(null);
+        player.onServiceDestroyed();
+
         if (session != null) {
+            session.setCallback(null);
             session.setActive(false);
             session.release();
+            session = null;
         }
+
         super.onDestroy();
     }
 
@@ -224,40 +247,60 @@ public class PlaybackService extends Service implements Player.Listener {
 
     @Override
     public void onSongChanged(Song song) {
+        if (destroyed) return;
+
         if (song == null) {
-            // full stop (mini-player swipe-down): wind the service down
             main.post(() -> {
+                if (destroyed || Player.get().current() != null) return;
+
+                main.removeCallbacks(stateTicker);
+                tickerOn = false;
                 stopForeground(true);
                 stopSelf();
             });
             return;
         }
+
         main.post(() -> {
+            if (destroyed) return;
+
+            Song current = Player.get().current();
+            if (current == null || current.id != song.id) return;
+
             currentArt = null;
             currentArtAlbum = -2;
-            updateMetadata(song);
+
+            updateMetadata(current);
             updateAll();
             ensureTicker();
-            Bitmap cached = MusicLibrary.cachedArt(song.albumId);
+
+            Bitmap cached = MusicLibrary.cachedArt(current.albumId);
             if (cached != null) {
                 currentArt = cached;
-                currentArtAlbum = song.albumId;
-                updateMetadata(song);
+                currentArtAlbum = current.albumId;
+                updateMetadata(current);
                 updateAll();
-            } else {
-                MusicLibrary.loadArtAsync(this, song.albumId, (albumId, bmp) -> {
-                    if (bmp == null) return;
-                    main.post(() -> {
-                        Song cur = Player.get().current();
-                        if (cur != null && cur.albumId == albumId) {
-                            currentArt = bmp;
-                            currentArtAlbum = albumId;
-                            updateMetadata(cur);
-                            updateAll();
-                        }
-                    });
-                });
+                return;
             }
+
+            MusicLibrary.loadArtAsync(
+                    getApplicationContext(),
+                    current.albumId,
+                    (albumId, bitmap) -> {
+                        if (bitmap == null) return;
+
+                        main.post(() -> {
+                            if (destroyed) return;
+
+                            Song latest = Player.get().current();
+                            if (latest == null || latest.albumId != albumId) return;
+
+                            currentArt = bitmap;
+                            currentArtAlbum = albumId;
+                            updateMetadata(latest);
+                            updateAll();
+                        });
+                    });
         });
     }
 
@@ -289,9 +332,15 @@ public class PlaybackService extends Service implements Player.Listener {
 
     @Override
     public void onPlayStateChanged(boolean playing) {
+        if (destroyed) return;
+
         main.post(() -> {
+            if (destroyed) return;
+
             updateAll();
-            if (playing) {
+
+            // Read the latest state rather than trusting a queued callback's value.
+            if (Player.get().isPlaying()) {
                 ensureTicker();
             } else {
                 main.removeCallbacks(stateTicker);
@@ -303,13 +352,20 @@ public class PlaybackService extends Service implements Player.Listener {
     // ----- notification + session -----
 
     private void updateAll() {
+        if (destroyed) return;
+
         updatePlaybackState();
-        NotificationManager nm = getSystemService(NotificationManager.class);
-        if (nm != null) nm.notify(NOTIF_ID, buildNotification());
-        Song cs = Player.get().current();
-        android.graphics.Bitmap art = cs != null && currentArt != null
-                && currentArtAlbum == cs.albumId ? currentArt : null;
-        SpotWidget.update(this, cs, Player.get().isPlaying(), art);
+
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager != null && Player.get().current() != null) {
+            manager.notify(NOTIF_ID, buildNotification());
+        }
+
+        Song song = Player.get().current();
+        Bitmap art = song != null && currentArt != null
+                && currentArtAlbum == song.albumId ? currentArt : null;
+
+        SpotWidget.update(this, song, Player.get().isPlaying(), art);
     }
 
     private PendingIntent actionIntent(String action, int req) {

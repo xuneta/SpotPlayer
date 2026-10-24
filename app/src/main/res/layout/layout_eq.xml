@@ -29,18 +29,18 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Sound"
+                    android:text="@string/auto_sound"
                     android:textColor="@color/spotify_white"
                     android:textSize="22sp"
                     android:textStyle="bold" />
 
                 <ImageView
                     android:id="@+id/eqClose"
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:background="@drawable/bg_soft_circle"
-                    android:contentDescription="Close"
-                    android:padding="4dp"
+                    android:contentDescription="@string/auto_close"
+                    android:padding="13dp"
                     android:src="@drawable/ic_close"
                     android:tint="@color/spotify_white" />
             </LinearLayout>
@@ -56,7 +56,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="Equalizer"
+                    android:text="@string/auto_equalizer"
                     android:textColor="@color/spotify_white"
                     android:textSize="16sp" />
 
@@ -82,7 +82,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Pro EQ"
+                        android:text="@string/auto_pro_eq"
                         android:textColor="@color/spotify_white"
                         android:textSize="16sp" />
 
@@ -90,7 +90,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="10-band parametric engine with limiter"
+                        android:text="@string/auto_10_band_parametric_engine_with_limiter"
                         android:textColor="@color/spotify_gray"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -120,7 +120,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Headphone (AutoEq)"
+                        android:text="@string/auto_headphone_autoeq"
                         android:textColor="@color/spotify_white"
                         android:textSize="16sp" />
 
@@ -131,7 +131,7 @@
                         android:layout_marginTop="2dp"
                         android:singleLine="true"
                         android:ellipsize="end"
-                        android:text="None"
+                        android:text="@string/auto_none"
                         android:textColor="@color/spotify_green"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -148,7 +148,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:text="Presets"
+                android:text="@string/auto_presets"
                 android:textColor="@color/spotify_gray"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -177,7 +177,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:text="Loudness boost"
+                android:text="@string/auto_loudness_boost"
                 android:textColor="@color/spotify_white"
                 android:textSize="16sp" />
 
@@ -209,7 +209,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:text="Bass boost"
+                android:text="@string/auto_bass_boost"
                 android:textColor="@color/spotify_white"
                 android:textSize="16sp" />
 
@@ -253,7 +253,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Normalize loudness"
+                        android:text="@string/auto_normalize_loudness"
                         android:textColor="@color/spotify_white"
                         android:textSize="16sp" />
 
@@ -261,7 +261,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="Evens out quiet and loud songs, like Spotify"
+                        android:text="@string/auto_evens_out_quiet_and_loud_songs_like_spot"
                         android:textColor="@color/spotify_gray"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -288,7 +288,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Auto headroom"
+                        android:text="@string/auto_auto_headroom"
                         android:textColor="@color/spotify_white"
                         android:textSize="16sp" />
 
@@ -296,7 +296,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="Lower volume by the strongest EQ boost to prevent clipping"
+                        android:text="@string/auto_lower_volume_by_the_strongest_eq_boost_t"
                         android:textColor="@color/spotify_gray"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -318,7 +318,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="10dp"
-                    android:text="L"
+                    android:text="@string/auto_l"
                     android:textColor="@color/spotify_gray"
                     android:textSize="13sp" />
 
@@ -333,7 +333,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="10dp"
-                    android:text="R"
+                    android:text="@string/auto_r"
                     android:textColor="@color/spotify_gray"
                     android:textSize="13sp" />
 
@@ -344,7 +344,7 @@
                     android:layout_marginStart="10dp"
                     android:minWidth="44dp"
                     android:gravity="end"
-                    android:text="Center"
+                    android:text="@string/auto_center"
                     android:textColor="@color/spotify_gray"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -365,7 +365,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Smart shuffle"
+                        android:text="@string/auto_smart_shuffle"
                         android:textColor="@color/spotify_white"
                         android:textSize="16sp" />
 
@@ -373,7 +373,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="Liked and most-played songs come up more often"
+                        android:text="@string/auto_liked_and_most_played_songs_come_up_more"
                         android:textColor="@color/spotify_gray"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -400,7 +400,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Trim silence"
+                        android:text="@string/auto_trim_silence"
                         android:textColor="@color/spotify_white"
                         android:textSize="16sp" />
 
@@ -408,7 +408,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="Skip quiet parts at the start and end of songs"
+                        android:text="@string/auto_skip_quiet_parts_at_the_start_and_end_of"
                         android:textColor="@color/spotify_gray"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -435,7 +435,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Shake to skip"
+                        android:text="@string/auto_shake_to_skip"
                         android:textColor="@color/spotify_white"
                         android:textSize="16sp" />
 
@@ -443,7 +443,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="Shake the phone to jump to the next song"
+                        android:text="@string/auto_shake_the_phone_to_jump_to_the_next_song"
                         android:textColor="@color/spotify_gray"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -458,7 +458,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:text="Crossfade"
+                android:text="@string/auto_crossfade"
                 android:textColor="@color/spotify_white"
                 android:textSize="16sp" />
 

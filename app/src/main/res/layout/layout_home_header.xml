@@ -10,10 +10,41 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="12dp"
-        android:text="Good evening"
+        android:text="@string/auto_good_evening"
         android:textColor="@color/spotify_white"
         android:textSize="24sp"
         android:textStyle="bold" />
+
+    <LinearLayout
+        android:id="@+id/homeShuffleBtn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="14dp"
+        android:background="@drawable/bg_shuffle_play"
+        android:foreground="@drawable/row_selector"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="18dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:contentDescription="@string/auto_shuffle_play"
+            android:src="@drawable/ic_shuffle"
+            android:tint="@color/spotify_black" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="@string/auto_shuffle_play"
+            android:textColor="@color/spotify_black"
+            android:textSize="15sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="wrap_content"
@@ -25,12 +56,14 @@
             android:id="@+id/chipAll"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:gravity="center_vertical"
             android:background="@drawable/bg_sort_chip"
             android:paddingStart="14dp"
             android:paddingEnd="14dp"
             android:paddingTop="6dp"
             android:paddingBottom="6dp"
-            android:text="All"
+            android:text="@string/auto_all"
             android:textColor="@color/spotify_white"
             android:textSize="13sp" />
 
@@ -38,13 +71,15 @@
             android:id="@+id/chipLiked"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:gravity="center_vertical"
             android:layout_marginStart="8dp"
             android:background="@drawable/bg_sort_chip"
             android:paddingStart="14dp"
             android:paddingEnd="14dp"
             android:paddingTop="6dp"
             android:paddingBottom="6dp"
-            android:text="Liked"
+            android:text="@string/auto_liked"
             android:textColor="@color/spotify_white"
             android:textSize="13sp" />
 
@@ -52,13 +87,15 @@
             android:id="@+id/chipAz"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:gravity="center_vertical"
             android:layout_marginStart="8dp"
             android:background="@drawable/bg_sort_chip"
             android:paddingStart="14dp"
             android:paddingEnd="14dp"
             android:paddingTop="6dp"
             android:paddingBottom="6dp"
-            android:text="A–Z"
+            android:text="@string/auto_a_z"
             android:textColor="@color/spotify_white"
             android:textSize="13sp" />
     </LinearLayout>
@@ -79,7 +116,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
         android:layout_marginBottom="12dp"
-        android:text="Jump back in"
+        android:text="@string/auto_jump_back_in"
         android:textColor="@color/spotify_white"
         android:textSize="22sp"
         android:textStyle="bold" />
@@ -104,7 +141,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
         android:layout_marginBottom="12dp"
-        android:text="Forgotten favorites"
+        android:text="@string/auto_forgotten_favorites"
         android:textColor="@color/spotify_white"
         android:textSize="22sp"
         android:textStyle="bold"
@@ -130,7 +167,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
         android:layout_marginBottom="8dp"
-        android:text="Your songs"
+        android:text="@string/auto_your_songs"
         android:textColor="@color/spotify_white"
         android:textSize="22sp"
         android:textStyle="bold" />

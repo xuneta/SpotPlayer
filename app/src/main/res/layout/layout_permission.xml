@@ -17,9 +17,9 @@
             android:layout_width="52dp"
             android:layout_height="52dp"
             android:layout_gravity="center"
-            android:contentDescription="Music"
+            android:contentDescription="@string/auto_music"
             android:src="@drawable/ic_note"
-            android:tint="#121212" />
+            android:tint="@color/spotify_black" />
     </FrameLayout>
 
     <TextView
@@ -27,7 +27,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="28dp"
         android:gravity="center"
-        android:text="Your music, right here"
+        android:text="@string/auto_your_music_right_here"
         android:textColor="@color/spotify_white"
         android:textSize="24sp"
         android:textStyle="bold" />
@@ -38,7 +38,7 @@
         android:layout_marginTop="14dp"
         android:gravity="center"
         android:lineSpacingMultiplier="1.25"
-        android:text="SpotPlayer needs access to the audio files on this phone so it can find and play your music. Your files never leave your device."
+        android:text="@string/auto_spotplayer_needs_access_to_the_audio_fil"
         android:textColor="@color/spotify_gray"
         android:textSize="15sp" />
 
@@ -52,8 +52,8 @@
         android:paddingEnd="36dp"
         android:paddingTop="13dp"
         android:paddingBottom="13dp"
-        android:text="Allow access"
-        android:textColor="#121212"
+        android:text="@string/auto_allow_access"
+        android:textColor="@color/spotify_black"
         android:textSize="16sp"
         android:textStyle="bold" />
 </LinearLayout>

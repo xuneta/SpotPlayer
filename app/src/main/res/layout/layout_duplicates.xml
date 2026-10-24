@@ -29,7 +29,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Duplicates"
+                    android:text="@string/auto_duplicates"
                     android:textColor="@color/spotify_white"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -45,11 +45,11 @@
 
             <ImageView
                 android:id="@+id/dupClose"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:background="@drawable/bg_soft_circle"
-                android:contentDescription="Close duplicates"
-                android:padding="4dp"
+                android:contentDescription="@string/auto_close_duplicates"
+                android:padding="12dp"
                 android:src="@drawable/ic_chevron_down"
                 android:tint="@color/spotify_white" />
         </LinearLayout>

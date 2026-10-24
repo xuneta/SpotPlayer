@@ -11,7 +11,7 @@
         android:id="@+id/widgetArt"
         android:layout_width="56dp"
         android:layout_height="56dp"
-        android:contentDescription="Album art"
+        android:contentDescription="@string/auto_album_art"
         android:scaleType="centerCrop"
         android:src="@drawable/ic_note" />
 
@@ -28,7 +28,7 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="SpotPlayer"
+            android:text="@string/auto_spotplayer"
             android:textColor="@color/spotify_white"
             android:textSize="14sp"
             android:textStyle="bold" />
@@ -39,32 +39,32 @@
             android:layout_height="wrap_content"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="Pick a song"
+            android:text="@string/auto_pick_a_song"
             android:textColor="@color/spotify_gray"
             android:textSize="12sp" />
     </LinearLayout>
 
     <ImageView
         android:id="@+id/widgetPrev"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:contentDescription="Previous"
-        android:padding="8dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:contentDescription="@string/auto_previous"
+        android:padding="12dp"
         android:src="@drawable/ic_prev" />
 
     <ImageView
         android:id="@+id/widgetPlayIcon"
-        android:layout_width="46dp"
-        android:layout_height="46dp"
-        android:contentDescription="Play or pause"
-        android:padding="8dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:contentDescription="@string/auto_play_or_pause"
+        android:padding="9dp"
         android:src="@drawable/ic_play" />
 
     <ImageView
         android:id="@+id/widgetNext"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:contentDescription="Next"
-        android:padding="8dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:contentDescription="@string/auto_next"
+        android:padding="12dp"
         android:src="@drawable/ic_next" />
 </LinearLayout>

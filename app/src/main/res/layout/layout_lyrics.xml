@@ -29,7 +29,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Lyrics"
+                    android:text="@string/auto_lyrics"
                     android:textColor="@color/spotify_white"
                     android:textSize="20sp"
                     android:textStyle="bold" />
@@ -47,22 +47,22 @@
 
             <ImageView
                 android:id="@+id/lyricsEdit"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_marginEnd="10dp"
                 android:background="@drawable/bg_soft_circle"
-                android:contentDescription="Edit lyrics"
-                android:padding="7dp"
+                android:contentDescription="@string/auto_edit_lyrics"
+                android:padding="15dp"
                 android:src="@drawable/ic_edit"
                 android:tint="@color/spotify_white" />
 
             <ImageView
                 android:id="@+id/lyricsClose"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:background="@drawable/bg_soft_circle"
-                android:contentDescription="Close lyrics"
-                android:padding="4dp"
+                android:contentDescription="@string/auto_close_lyrics"
+                android:padding="12dp"
                 android:src="@drawable/ic_chevron_down"
                 android:tint="@color/spotify_white" />
         </LinearLayout>
@@ -79,7 +79,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:lineSpacingMultiplier="1.6"
-                android:textColor="#E8E8E8"
+                android:textColor="@color/lyrics_text"
                 android:textSize="17sp" />
         </ScrollView>
     </LinearLayout>

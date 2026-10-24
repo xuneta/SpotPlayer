@@ -122,6 +122,8 @@ public class Player {
     // ----- ExoPlayer engine plumbing -----
 
     private int lastFxSession = -1; // audio session the live effects are attached to
+    private Map<String, ?> fxSettingsSnapshot;
+    private int fxBoostSnapshot = Integer.MIN_VALUE;
 
     /** Bridges ExoPlayer callbacks back into our single-threaded engine logic. */
     private final class EngineListener implements androidx.media3.common.Player.Listener {
@@ -129,26 +131,124 @@ public class Player {
         private final Runnable onEnded;
         private final java.util.function.Consumer<
                 androidx.media3.common.PlaybackException> onError;
+        private final Runnable onReady;
 
         EngineListener(ExoPlayer owner, Runnable onEnded,
                        java.util.function.Consumer<
                                androidx.media3.common.PlaybackException> onError) {
+            this(owner, onEnded, onError, null);
+        }
+
+        EngineListener(ExoPlayer owner, Runnable onEnded,
+                       java.util.function.Consumer<
+                               androidx.media3.common.PlaybackException> onError,
+                       Runnable onReady) {
             this.owner = owner;
             this.onEnded = onEnded;
             this.onError = onError;
+            this.onReady = onReady;
         }
 
         @Override
         public void onPlaybackStateChanged(int state) {
-            if (state == androidx.media3.common.Player.STATE_ENDED && onEnded != null) {
-                try { onEnded.run(); } catch (Exception ignored) {}
+            if (owner != mp && owner != mpNext && owner != mpGapless) return;
+
+            if (fading && (owner == mp || owner == mpNext)) {
+                advanceFadeProgress();
+
+                if (owner == mpNext) {
+                    fadeAwaitReady = state
+                            != androidx.media3.common.Player.STATE_READY
+                            || !owner.isPlaying();
+                }
+
+                if (state != androidx.media3.common.Player.STATE_READY) {
+                    fadeClockRunning = false;
+                }
+            }
+
+            if (state == androidx.media3.common.Player.STATE_ENDED) {
+                if (owner == mpGapless) {
+                    cancelGapless();
+                    return;
+                }
+
+                if (owner == mp && fading) {
+                    if (sleepAtTrackEnd) {
+                        onCompleted(appCtx);
+                        return;
+                    }
+
+                    // Keep the incoming engine in its fade role until it can play.
+                    boolean incomingReady = mpNext != null
+                            && mpNext.getPlaybackState()
+                            == androidx.media3.common.Player.STATE_READY
+                            && mpNext.isPlaying();
+
+                    if (owner.getPlayWhenReady()
+                            && mpNext != null
+                            && mpNext.getPlayWhenReady()
+                            && incomingReady) {
+                        finalizeFade();
+                    } else {
+                        runFadeRamp();
+                        scheduleFadeChecks();
+                    }
+                    return;
+                }
+
+                if (onEnded != null) {
+                    try {
+                        onEnded.run();
+                    } catch (Exception ignored) {
+                    }
+                }
+                return;
+            }
+
+            if (state == androidx.media3.common.Player.STATE_READY && onReady != null) {
+                try {
+                    onReady.run();
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        @Override
+        public void onIsPlayingChanged(boolean isPlaying) {
+            if (owner != mp && owner != mpNext && owner != mpGapless) return;
+
+            if (fading && (owner == mp || owner == mpNext)) {
+                advanceFadeProgress();
+
+                if (owner == mpNext) {
+                    fadeAwaitReady = !isPlaying
+                            || owner.getPlaybackState()
+                            != androidx.media3.common.Player.STATE_READY;
+                }
+
+                if (!isPlaying) fadeClockRunning = false;
+
+                runFadeRamp();
+            }
+
+            if (owner == mp) {
+                try {
+                    fireState(owner.getPlayWhenReady());
+                } catch (Exception ignored) {
+                }
             }
         }
 
         @Override
         public void onPlayerError(androidx.media3.common.PlaybackException e) {
+            if (owner != mp && owner != mpNext && owner != mpGapless) return;
+
             if (onError != null) {
-                try { onError.accept(e); } catch (Exception ignored) {}
+                try {
+                    onError.accept(e);
+                } catch (Exception ignored) {
+                }
             }
         }
 
@@ -186,6 +286,7 @@ public class Player {
         ExoPlayer p = new ExoPlayer.Builder(appCtx)
                 .setRenderersFactory(rf)
                 .setAudioAttributes(aa, false)
+                .setWakeMode(C.WAKE_MODE_LOCAL) // screen-off playback keeps the CPU awake
                 .build();
         if (slot == 0) balCur = bp;
         else if (slot == 1) balNext = bp;
@@ -221,6 +322,9 @@ public class Player {
     private boolean fading = false;
     private int fadeNextIndex = -1;
     private long fadeStartAt = 0;
+    private double fadeProgress = 0d;
+    private long fadeDurationMs = 1L;
+    private boolean fadeClockRunning = false;
     private final Handler fadeHandler = new Handler(Looper.getMainLooper());
 
     // audio fx
@@ -231,19 +335,34 @@ public class Player {
     private float balL = 1f, balR = 1f; // cached stereo-balance channel factors
     private float volFactor = 1f;      // attenuation from normalization (<= 1)
     private float volFactorNext = 1f;
+    private float currentVolume = 1f;
+    private float transportLevel = 1f;
 
     // audio focus / ducking
     private android.media.AudioManager audioManager;
     private android.media.AudioFocusRequest focusRequest;
     private boolean resumeOnGain = false;
     private boolean ducked = false;
+    private boolean pendingFocusPlay = false; // start blocked by a focus denial; play on GAIN
+
+    // transport-intent state (v5.6.13 review fixes)
+    private boolean pauseRamp = false;        // a pause ramp is currently running
+    private boolean enginesReleased = false;  // service died: engines released, queue kept
+    private int savedReleasePos = 0;          // position to rebuild at after engine release
+    private long lastFadeTickAt = 0;          // last fadeTick time (fade clock freezes paused)
+    private boolean fadeAwaitReady = false;   // fade clock starts when the incoming engine is ready
+    private final Handler tickHandler = new Handler(Looper.getMainLooper()); // fade ticker only
 
     private float effVol() {
         return volFactor * (ducked ? 0.25f : 1f);
     }
 
     private void applyVolumeNow() {
-        if (mp != null && !fading) {
+        if (mp == null) return;
+
+        if (fading && mpNext != null) {
+            runFadeRamp();
+        } else {
             setPlayerVolume(mp, effVol());
         }
     }
@@ -263,16 +382,44 @@ public class Player {
      * ExoPlayer.setVolume() is mono, so balance is baked into each player's
      * BalanceProcessor in the audio chain instead.
      */
+    private float currentTransportLevel() {
+        float fullVolume = effVol() * wakeFactor;
+
+        if (!Float.isFinite(fullVolume) || fullVolume <= 0f) {
+            return Math.max(0f, Math.min(1f, transportLevel));
+        }
+
+        return Math.max(0f, Math.min(1f, currentVolume / fullVolume));
+    }
+
     private void setPlayerVolume(ExoPlayer m, float v) {
         if (m == null) return;
-        // v5.6.6: wakeFactor scales every engine volume during the wake-up ramp.
-        try { m.setVolume(v * wakeFactor); } catch (Exception ignored) {}
+
+        float volume = v * wakeFactor;
+
+        if (m == mp && !fading) {
+            volume *= transportLevel;
+        }
+
+        if (!Float.isFinite(volume)) volume = 0f;
+        volume = Math.max(0f, Math.min(1f, volume));
+
+        try {
+            m.setVolume(volume);
+            if (m == mp) currentVolume = volume;
+        } catch (Exception ignored) {
+        }
     }
 
     /** v5.6.6: re-apply the standing volumes (used by the wake-up ramp). */
     private void reapplyVolumes() {
-        if (mp != null) setPlayerVolume(mp, effVol());
-        if (mpGapless != null && gapReady) setPlayerVolume(mpGapless, volFactorGap);
+        applyVolumeNow();
+
+        if (mpGapless != null && gapReady) {
+            setPlayerVolume(
+                    mpGapless,
+                    volFactorGap * (ducked ? 0.25f : 1f));
+        }
     }
 
     /** v5.6.6: any manual control cancels the wake-up volume ramp. */
@@ -299,11 +446,11 @@ public class Player {
                 switch (change) {
                     case android.media.AudioManager.AUDIOFOCUS_LOSS:
                         resumeOnGain = false;
-                        if (isPlaying() && appCtx != null) pause(appCtx);
+                        if (wantsPlay() && appCtx != null) pause(appCtx);
                         break;
                     case android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-                        resumeOnGain = isPlaying();
-                        if (isPlaying() && appCtx != null) pause(appCtx);
+                        resumeOnGain = wantsPlay();
+                        if (wantsPlay() && appCtx != null) pause(appCtx);
                         break;
                     case android.media.AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
                         ducked = true;
@@ -314,9 +461,16 @@ public class Player {
                             ducked = false;
                             applyVolumeNow();
                         }
+                        if (pendingFocusPlay) {
+                            pendingFocusPlay = false;
+                            if (mp != null && !mp.getPlayWhenReady() && appCtx != null) {
+                                rampResume(appCtx);
+                            }
+                        }
                         if (resumeOnGain) {
                             resumeOnGain = false;
-                            if (mp != null && !isPlaying() && appCtx != null) toggle(appCtx);
+                            // resume() also reverses a pause ramp still in flight
+                            if (appCtx != null) resume(appCtx);
                         }
                         break;
                     default:
@@ -324,26 +478,86 @@ public class Player {
                 }
             };
 
-    private void ensureFocus() {
-        if (appCtx == null) return;
+    private boolean ensureFocus() {
+        if (appCtx == null) return false;
+
         try {
             if (audioManager == null) {
-                audioManager = (android.media.AudioManager)
+                audioManager = (AudioManager)
                         appCtx.getSystemService(Context.AUDIO_SERVICE);
             }
-            if (audioManager == null) return;
+            if (audioManager == null) return false;
+
             if (focusRequest == null) {
                 focusRequest = new android.media.AudioFocusRequest.Builder(
-                        android.media.AudioManager.AUDIOFOCUS_GAIN)
+                        AudioManager.AUDIOFOCUS_GAIN)
                         .setAudioAttributes(new android.media.AudioAttributes.Builder()
                                 .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                                .setContentType(
+                                        android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
                                 .build())
-                        .setOnAudioFocusChangeListener(focusListener, fadeHandler)
+                        .setOnAudioFocusChangeListener(
+                                this::handleAudioFocusChange, fadeHandler)
                         .build();
             }
-            audioManager.requestAudioFocus(focusRequest);
+
+            return audioManager.requestAudioFocus(focusRequest)
+                    == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private void handleAudioFocusChange(int change) {
+        switch (change) {
+            case AudioManager.AUDIOFOCUS_LOSS: {
+                pause(appCtx);
+                resumeOnGain = false;
+                pendingFocusPlay = false;
+                break;
+            }
+
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT: {
+                boolean shouldResume = wantsPlay() && !pauseRamp;
+                pause(appCtx);
+                resumeOnGain = shouldResume;
+                break;
+            }
+
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK: {
+                ducked = true;
+                applyVolumeNow();
+                break;
+            }
+
+            case AudioManager.AUDIOFOCUS_GAIN: {
+                ducked = false;
+                applyVolumeNow();
+
+                boolean shouldResume = resumeOnGain;
+                resumeOnGain = false;
+
+                // Failed requests are not delayed requests. Only an actual
+                // transient-loss recovery automatically resumes playback.
+                if (shouldResume && appCtx != null) resume(appCtx);
+                break;
+            }
+
+            default:
+                break;
+        }
+    }
+
+    /** Gives audio focus back (full-stop paths only; track changes keep it). */
+    private void abandonFocus() {
+        try {
+            if (audioManager != null && focusRequest != null) {
+                audioManager.abandonAudioFocusRequest(focusRequest);
+            }
         } catch (Exception ignored) {}
+        resumeOnGain = false;
+        pendingFocusPlay = false;
+        ducked = false;
     }
 
     // playback speed
@@ -352,10 +566,18 @@ public class Player {
     public float getSpeed() { return speed; }
 
     public void setSpeed(float s) {
+        if (!Float.isFinite(s) || s <= 0f) return;
+
+        // Account for the preceding interval before installing the new speed.
+        advanceFadeProgress();
+
         speed = s;
         applySpeed(mp);
         applySpeed(mpNext);
         applySpeed(mpGapless);
+
+        lastFadeTickAt = SystemClock.elapsedRealtime();
+        if (fading) runFadeRamp();
     }
 
     private void applySpeed(ExoPlayer m) {
@@ -410,9 +632,21 @@ public class Player {
         }
     }
     public boolean isPlaying() { return mp != null && mp.isPlaying(); }
+
+    /** Playback INTENT (playWhenReady): true while playing OR buffering to play.
+     *  Transport decisions use this — isPlaying() is false during buffering,
+     *  which used to make pause/focus-loss/noisy events no-ops mid-buffer. */
+    public boolean wantsPlay() { return mp != null && mp.getPlayWhenReady(); }
     public boolean isShuffle() { return shuffle; }
     public int getRepeat() { return repeat; }
-    public void setShuffle(boolean s) { shuffle = s; }
+    public void setShuffle(boolean s) {
+        if (shuffle == s) return;
+        shuffle = s;
+        // A gapless preload chosen under the old shuffle state is no longer
+        // the right "next" — rebuild it.
+        cancelGapless();
+        if (mp != null && isPlaying()) maybePreloadGapless();
+    }
 
     // ----- full library (used by the RG scanner for album lookups) -----
 
@@ -444,7 +678,27 @@ public class Player {
         try {
             AudioManager am = (AudioManager) ctx.getSystemService(Context.AUDIO_SERVICE);
             if (am == null) return "spk";
-            AudioDeviceInfo[] outs = am.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
+            AudioDeviceInfo[] outs = null;
+            if (android.os.Build.VERSION.SDK_INT >= 33) {
+                // Prefer the devices actually ROUTED for media playback
+                // (a merely-connected BT device must not steal the EQ route).
+                try {
+                    android.media.AudioAttributes aa = new android.media.AudioAttributes.Builder()
+                            .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build();
+                    Object res = AudioManager.class
+                            .getMethod("getDevicesForAttributes", android.media.AudioAttributes.class)
+                            .invoke(am, aa);
+                    if (res instanceof java.util.List) {
+                        java.util.List<?> list = (java.util.List<?>) res;
+                        if (!list.isEmpty()) {
+                            outs = list.toArray(new AudioDeviceInfo[0]);
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+            if (outs == null) outs = am.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
             for (AudioDeviceInfo d : outs) {
                 if (d.getType() == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP) return "bt";
             }
@@ -539,6 +793,10 @@ public class Player {
     }
     public int cycleRepeat() {
         repeat = (repeat + 1) % 3;
+        // Same rule as setShuffle: a stale preload must not override the
+        // repeat mode the user just chose (repeat-one included).
+        cancelGapless();
+        if (mp != null && isPlaying()) maybePreloadGapless();
         return repeat;
     }
 
@@ -556,30 +814,85 @@ public class Player {
     private int errorStreak = 0;
 
     /** A file that fails to decode used to fake-play in silence (null handler).
-     *  Now: tell the user and skip on — giving up after 3 failures in a row. */
+     *  Now: tell the user and skip on — giving up after 3 failures in a row.
+     *  The skip is identity-checked: if the user already moved to another
+     *  track, the stale skip must not fire. A paused (restored) engine that
+     *  fails never auto-advances. */
     private void onEngineError(Context ctx) {
+        final ExoPlayer failedEngine = mp;
+        final Song failedSong = current();
+
+        if (failedEngine == null || failedSong == null) return;
+
+        final Context context = ctx != null
+                ? ctx.getApplicationContext() : appCtx;
+        final long failedSongId = failedSong.id;
+        final int failedRampToken = rampToken;
+
+        if (!failedEngine.getPlayWhenReady() || pauseRamp) {
+            finishPlayback();
+            return;
+        }
+
         errorStreak++;
-        final Context c = ctx != null ? ctx : appCtx;
-        if (c != null) {
-            new android.os.Handler(android.os.Looper.getMainLooper()).post(() ->
-                    android.widget.Toast.makeText(c,
-                            "Couldn't play that file — skipping",
-                            android.widget.Toast.LENGTH_SHORT).show());
+
+        boolean canSkip = errorStreak <= 3 && queue.size() > 1;
+
+        if (context != null) {
+            Toast.makeText(
+                    context,
+                    canSkip
+                            ? "Couldn't play that file — skipping"
+                            : "Couldn't play that file",
+                    Toast.LENGTH_SHORT).show();
         }
-        if (errorStreak <= 3 && queue != null && queue.size() > 1 && c != null) {
-            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                try { next(c); } catch (Exception ignored) {}
-            });
-        } else {
-            fireState(false);
+
+        if (!canSkip) {
+            finishPlayback();
+            return;
         }
+
+        fadeHandler.post(() -> {
+            Song currentSong = current();
+
+            if (mp != failedEngine
+                    || currentSong == null
+                    || currentSong.id != failedSongId
+                    || rampToken != failedRampToken) {
+                return;
+            }
+
+            if (!failedEngine.getPlayWhenReady() || pauseRamp) {
+                finishPlayback();
+                return;
+            }
+
+            if (context == null) {
+                finishPlayback();
+                return;
+            }
+
+            // An errored engine must not become the outgoing side of a manual fade.
+            cancelFade();
+            cancelGapless();
+            failedEngine.pause();
+
+            next(context);
+        });
     }
 
     public void play(Context ctx, List<Song> songs, int startIndex) {
         errorStreak = 0;
         cancelWakeRamp();
+        enginesReleased = false;
+        if (songs == null || songs.isEmpty()) {
+            // An empty/invalid play request must not leave the OLD audio
+            // playing under a queue that no longer describes it.
+            stopFully(ctx);
+            return;
+        }
         queue = new ArrayList<>(songs);
-        index = startIndex;
+        index = Math.max(0, Math.min(startIndex, queue.size() - 1));
         startCurrent(ctx);
     }
 
@@ -594,6 +907,14 @@ public class Player {
 
     public void removeAt(Context ctx, int i) {
         if (i < 0 || i >= queue.size()) return;
+        if (fading && i == index) {
+            // Removing the OUTGOING track mid-fade: promote the incoming
+            // engine now so the queue index matches what is audible.
+            queue.remove(i);
+            if (fadeNextIndex > i) fadeNextIndex--;
+            finalizeFade();
+            return;
+        }
         if (i == index) {
             cancelFade();
             queue.remove(i);
@@ -601,79 +922,153 @@ public class Player {
                 releasePlayer();
                 index = -1;
                 fireState(false);
+                fireSong(null); // service must wind down like a full stop
+                saveSession();
                 return;
             }
             if (index >= queue.size()) index = queue.size() - 1;
             startCurrent(ctx);
-        } else {
-            queue.remove(i);
-            if (i < index) index--;
-            if (gapNextIndex >= 0) {
-                if (i == gapNextIndex) {
-                    cancelGapless();
-                    if (isPlaying()) maybePreloadGapless();
-                } else if (i < gapNextIndex) {
-                    gapNextIndex--;
-                }
+            return;
+        }
+        queue.remove(i);
+        if (i < index) index--;
+        if (fading) {
+            // Removing the fade TARGET kills the fade; removing an earlier
+            // item just shifts the target's index.
+            if (i == fadeNextIndex) cancelFade();
+            else if (i < fadeNextIndex) fadeNextIndex--;
+        }
+        if (gapNextIndex >= 0) {
+            if (i == gapNextIndex) {
+                cancelGapless();
+                if (isPlaying()) maybePreloadGapless();
+            } else if (i < gapNextIndex) {
+                gapNextIndex--;
             }
         }
+        saveSession();
     }
 
     private void startCurrent(Context ctx) {
-        Song s = current();
-        if (s == null) return;
-        appCtx = ctx.getApplicationContext();
+        if (ctx != null) appCtx = ctx.getApplicationContext();
+
+        Song song = current();
+        if (song == null || appCtx == null) {
+            releasePlayer();
+            abandonFocus();
+            fireState(false);
+            return;
+        }
+
+        enginesReleased = false;
+        pendingFocusPlay = false;
+        resumeOnGain = false;
+
         ensureService();
-        ensureFocus();
         cancelFade();
         releasePlayer();
-        volFactor = normAttenuation(s);
-        final Context fctx = ctx;
+
+        boolean focusGranted = ensureFocus();
+        pendingFocusPlay = !focusGranted;
+        volFactor = combinedAttenuation(song);
+
+        final Context playbackContext = appCtx;
+
         try {
-            mp = makePlayer(0);
-            mp.addListener(new EngineListener(mp,
-                    () -> { if (fading) finalizeFade(); else onCompleted(fctx); },
-                    e -> onEngineError(fctx)));
-            mp.setMediaItem(MediaItem.fromUri(s.uri));
-            applySpeed(mp);
-            setPlayerVolume(mp, volFactor);
-            mp.setPlayWhenReady(true);
-            mp.prepare();
-            if (skipBookmarkOnce) skipBookmarkOnce = false;
-            else maybeResumeBookmark(ctx, s);
-            attachFxIfReady(mp);
+            ExoPlayer player = makePlayer(0);
+            mp = player;
+
+            player.addListener(new EngineListener(
+                    player,
+                    () -> {
+                        if (mp != player) return;
+                        if (fading) finalizeFade();
+                        else onCompleted(playbackContext);
+                    },
+                    error -> {
+                        if (mp == player) onEngineError(playbackContext);
+                    }));
+
+            player.setMediaItem(MediaItem.fromUri(song.uri));
+            applySpeed(player);
+            setPlayerVolume(player, effVol());
+            player.setPlayWhenReady(focusGranted);
+            player.prepare();
+
+            if (skipBookmarkOnce) {
+                skipBookmarkOnce = false;
+            } else {
+                maybeResumeBookmark(playbackContext, song);
+            }
+
+            attachFxIfReady(player);
             maybePreloadGapless();
         } catch (Exception e) {
             releasePlayer();
+            abandonFocus();
+            fireSong(song);
+            fireState(false);
+            saveSession();
             return;
         }
+
         analyzeCurrentSong();
-        fireSong(s);
-        fireState(true);
+        fireSong(song);
+        fireState(focusGranted);
         scheduleFadeChecks();
         saveSession();
+    }
+
+    private void finishPlayback() {
+        rampToken++;
+        pauseRamp = false;
+        pendingFocusPlay = false;
+        resumeOnGain = false;
+
+        cancelFade();
+        cancelGapless();
+
+        if (mp != null) mp.pause();
+
+        transportLevel = 1f;
+        fadeClockRunning = false;
+        tickHandler.removeCallbacksAndMessages(null);
+
+        abandonFocus();
+        applyVolumeNow();
+        saveSession();
+        fireState(false);
     }
 
     private void onCompleted(Context ctx) {
         if (sleepAtTrackEnd) {
             sleepAtTrackEnd = false;
-            fireState(false);
+            clearBookmark(current());
+            finishPlayback();
             return;
         }
-        if (gapNextIndex >= 0 && mpGapless != null) {
-            promoteGapless(ctx);
-            return;
-        }
+
+        errorStreak = 0;
+        clearBookmark(current());
+
         if (repeat == 2) {
-            skipBookmarkOnce = true; // repeating one: restart at 0, not at the bookmark
+            cancelGapless();
+            skipBookmarkOnce = true;
             startCurrent(ctx);
             return;
         }
-        clearBookmark(current()); // completed (or past 95%): forget the resume point
-        if (!queue.isEmpty() && (index < queue.size() - 1 || repeat == 1 || shuffle)) {
+
+        if (gapNextIndex >= 0 && gapNextIndex < queue.size()
+                && mpGapless != null) {
+            promoteGapless(ctx);
+            return;
+        }
+
+        if (!queue.isEmpty()
+                && (index < queue.size() - 1 || repeat == 1 || shuffle)) {
             autoAdvance(ctx);
         } else {
-            fireState(false);
+            finishPlayback();
         }
     }
 
@@ -701,12 +1096,23 @@ public class Player {
         long thrMs = thr * 1000L;
         int n = queue.size();
         int pick = logicalNextIndex();
+        int lastCand = pick;
         for (int t = 0; t < 12; t++) {
             Song c = queue.get(pick);
+            lastCand = pick;
             if (c.durationMs >= thrMs) return pick;
-            pick = (shuffle && n > 1) ? pickRandomIndex() : (pick + 1) % n;
+            if (shuffle && n > 1) {
+                pick = pickRandomIndex();
+            } else if (repeat == 1) {
+                pick = (pick + 1) % n;
+            } else {
+                // Sequential with repeat OFF: never wrap past the queue end
+                // (wrapping used to restart the queue from the top).
+                if (pick + 1 >= n) break;
+                pick = pick + 1;
+            }
         }
-        return pick; // everything short: play anyway
+        return lastCand; // everything short: play the last candidate anyway
     }
 
     // ----- gapless: preloaded next player, zero-gap handoff -----
@@ -721,13 +1127,17 @@ public class Player {
         gapNextIndex = pickAutoIndex(); // must match what autoAdvance will play
         Song ns = queue.get(gapNextIndex);
         volFactorGap = combinedAttenuation(ns);
-        final ExoPlayer g;
+        ExoPlayer g = null;
         try {
             g = makePlayer(2);
             final Context fctx = appCtx;
+            final ExoPlayer fg = g;
             g.addListener(new EngineListener(g,
                     () -> { if (fading) finalizeFade(); else onCompleted(fctx); },
-                    e -> { if (g == mpGapless) cancelGapless(); }));
+                    e -> {
+                        if (fg == mpGapless) cancelGapless();
+                        else if (fg == mp) onEngineError(fctx); // promoted player keeps error handling
+                    }));
             g.setMediaItem(MediaItem.fromUri(ns.uri));
             applySpeed(g);
             setPlayerVolume(g, volFactorGap);
@@ -735,6 +1145,7 @@ public class Player {
             mpGapless = g;
             gapReady = true;
         } catch (Exception e) {
+            if (g != null) { try { g.release(); } catch (Exception ignored) {} }
             mpGapless = null;
             balGap = null;
             gapNextIndex = -1;
@@ -752,58 +1163,120 @@ public class Player {
     }
 
     private void promoteGapless(Context ctx) {
-        ExoPlayer old = mp;
-        ExoPlayer g = mpGapless;
+        if (mpGapless == null
+                || gapNextIndex < 0
+                || gapNextIndex >= queue.size()) {
+            cancelGapless();
+            return;
+        }
+
+        if (sleepAtTrackEnd) {
+            sleepAtTrackEnd = false;
+            finishPlayback();
+            return;
+        }
+
+        ExoPlayer outgoing = mp;
+        ExoPlayer incoming = mpGapless;
+        int incomingIndex = gapNextIndex;
+
         mpGapless = null;
-        balCur = balGap;
-        balGap = null;
-        int newIndex = gapNextIndex;
         gapNextIndex = -1;
         gapReady = false;
-        mp = g;
-        index = newIndex;
-        volFactor = volFactorGap;
-        if (old != null) {
-            try { old.release(); } catch (Exception ignored) {}
+
+        mp = incoming;
+        index = incomingIndex;
+        balCur = balGap;
+        balGap = null;
+
+        rampToken++;
+        pauseRamp = false;
+        transportLevel = 1f;
+        errorStreak = 0;
+
+        Song song = current();
+        volFactor = combinedAttenuation(song);
+
+        if (outgoing != null) {
+            try {
+                outgoing.release();
+            } catch (Exception ignored) {
+            }
         }
+
         setPlayerVolume(mp, effVol());
         attachFxIfReady(mp);
-        try { mp.setPlayWhenReady(true); } catch (Exception ignored) {}
-        Song s = current();
-        if (s != null) {
-            if (skipBookmarkOnce) skipBookmarkOnce = false;
-            else maybeResumeBookmark(appCtx, s);
-            fireSong(s);
-            fireState(true);
+        mp.setPlayWhenReady(true);
+
+        if (song != null) {
+            if (skipBookmarkOnce) {
+                skipBookmarkOnce = false;
+            } else {
+                maybeResumeBookmark(appCtx, song);
+            }
+
+            fireSong(song);
+            fireState(mp.getPlayWhenReady());
             analyzeCurrentSong();
             saveSession();
+            scheduleFadeChecks();
             maybePreloadGapless();
         }
     }
 
+    private boolean needsEngineRebuild(ExoPlayer player) {
+        if (player == null) return true;
+
+        return player.getPlayerError() != null
+                || player.getPlaybackState()
+                == androidx.media3.common.Player.STATE_ENDED
+                || player.getPlaybackState()
+                == androidx.media3.common.Player.STATE_IDLE;
+    }
+
     public void toggle(Context ctx) {
-        cancelWakeRamp();
+        if (ctx == null) return;
+
         appCtx = ctx.getApplicationContext();
-        if (mp == null) return;
-        if (fading) {
-            // crossfade owns the volumes: switch instantly
-            try {
-                if (mp.isPlaying()) {
-                    mp.pause();
-                    if (mpNext != null) mpNext.pause();
-                    fireState(false);
-                } else {
-                    mp.play();
-                    if (mpNext != null) mpNext.play();
-                    fireState(true);
-                    scheduleFadeChecks();
-                }
-            } catch (Exception ignored) {}
-            saveSession();
-            return;
+
+        if (pauseRamp || pendingFocusPlay || mp == null
+                || (!fading && needsEngineRebuild(mp))
+                || !mp.getPlayWhenReady()) {
+            resume(ctx);
+        } else {
+            pause(ctx);
         }
-        if (mp.isPlaying()) rampPause();
-        else rampResume(ctx);
+    }
+
+    public void resume(Context ctx) {
+        if (ctx == null) return;
+
+        appCtx = ctx.getApplicationContext();
+
+        if (current() == null) return;
+
+        cancelWakeRamp();
+        ensureService();
+
+        if (mp == null) {
+            int resumePosition = enginesReleased ? savedReleasePos : 0;
+            List<Song> savedQueue = new ArrayList<>(queue);
+            int savedIndex = index;
+
+            if (!restore(ctx, savedQueue, savedIndex, resumePosition)) return;
+
+            enginesReleased = false;
+        }
+
+        boolean incomingPaused = fading
+                && mpNext != null
+                && !mpNext.getPlayWhenReady();
+
+        if (pauseRamp || pendingFocusPlay || incomingPaused
+                || !mp.getPlayWhenReady()
+                || (!fading && needsEngineRebuild(mp))) {
+            rampResume(ctx);
+        }
     }
 
     // ----- volume ramp on pause / resume (350 ms, no hard cuts) -----
@@ -811,63 +1284,157 @@ public class Player {
     private int rampToken = 0;
 
     private void rampPause() {
+        if (mp == null || pauseRamp || !mp.getPlayWhenReady()) return;
+
+        pendingFocusPlay = false;
+        pauseRamp = true;
+
         final ExoPlayer target = mp;
-        final float from = effVol();
-        final long t0 = SystemClock.elapsedRealtime();
+        final float from = currentTransportLevel();
+        final long startedAt = SystemClock.elapsedRealtime();
         final int token = ++rampToken;
+
+        transportLevel = from;
+
         fadeHandler.post(new Runnable() {
-            @Override public void run() {
-                if (token != rampToken || mp != target) return;
-                float t = (SystemClock.elapsedRealtime() - t0) / 350f;
-                try {
-                    if (t >= 1f) {
-                        target.pause();
-                        setPlayerVolume(target, from);
-                        fireState(false);
-                        saveSession();
-                        return;
-                    }
-                    setPlayerVolume(target, from * (1f - t));
-                } catch (Exception ignored) {
+            @Override
+            public void run() {
+                if (token != rampToken || mp != target || fading) return;
+
+                float progress = Math.min(
+                        1f,
+                        (SystemClock.elapsedRealtime() - startedAt) / 350f);
+
+                transportLevel = from * (1f - progress);
+
+                // The current attenuation and duck multiplier are read each tick.
+                setPlayerVolume(target, effVol());
+
+                if (progress >= 1f) {
+                    target.pause();
+                    pauseRamp = false;
+                    fireState(false);
+                    saveSession();
                     return;
                 }
+
                 fadeHandler.postDelayed(this, 30);
             }
         });
     }
 
     private void rampResume(Context ctx) {
-        try {
-            setPlayerVolume(mp, 0f);
+        if (ctx != null) appCtx = ctx.getApplicationContext();
+        if (mp == null || appCtx == null) return;
+
+        ensureService();
+
+        if (!fading && needsEngineRebuild(mp)) {
+            skipBookmarkOnce = true;
+            startCurrent(appCtx);
+            return;
+        }
+
+        if (!ensureFocus()) {
+            advanceFadeProgress();
+
+            rampToken++;
+            pauseRamp = false;
+            resumeOnGain = false;
+            pendingFocusPlay = true;
+
+            mp.pause();
+            if (mpNext != null) mpNext.pause();
+
+            fadeClockRunning = false;
+            lastFadeTickAt = SystemClock.elapsedRealtime();
+            fireState(false);
+            saveSession();
+            return;
+        }
+
+        pendingFocusPlay = false;
+        resumeOnGain = false;
+        rampToken++;
+        pauseRamp = false;
+
+        if (fading && mpNext != null) {
+            transportLevel = 1f;
+            lastFadeTickAt = SystemClock.elapsedRealtime();
+            fadeClockRunning = false;
+
             mp.play();
-        } catch (Exception ignored) {}
+            mpNext.play();
+
+            applyVolumeNow();
+            scheduleFadeChecks();
+            fireState(true);
+            saveSession();
+            return;
+        }
+
+        final ExoPlayer target = mp;
+        final float from = currentTransportLevel();
+        final long startedAt = SystemClock.elapsedRealtime();
+        final int token = ++rampToken;
+
+        transportLevel = from;
+        applyVolumeNow();
+        target.play();
+
         fireState(true);
         scheduleFadeChecks();
         maybePreloadGapless();
-        final ExoPlayer target = mp;
-        final float to = effVol();
-        final long t0 = SystemClock.elapsedRealtime();
-        final int token = ++rampToken;
+        saveSession();
+
         fadeHandler.post(new Runnable() {
-            @Override public void run() {
-                if (token != rampToken || mp != target) return;
-                float t = (SystemClock.elapsedRealtime() - t0) / 350f;
-                try {
-                    if (t >= 1f) {
-                        setPlayerVolume(target, to);
-                        return;
-                    }
-                    setPlayerVolume(target, to * t);
-                } catch (Exception ignored) {
-                    return;
+            @Override
+            public void run() {
+                if (token != rampToken || mp != target || fading) return;
+
+                float progress = Math.min(
+                        1f,
+                        (SystemClock.elapsedRealtime() - startedAt) / 350f);
+
+                transportLevel = from + (1f - from) * progress;
+
+                // effVol() is evaluated here, rather than captured at ramp start.
+                setPlayerVolume(target, effVol());
+
+                if (progress < 1f) {
+                    fadeHandler.postDelayed(this, 30);
                 }
-                fadeHandler.postDelayed(this, 30);
             }
         });
     }
 
     public void pause(Context ctx) {
-        if (mp != null && mp.isPlaying()) toggle(ctx);
+        if (ctx != null) appCtx = ctx.getApplicationContext();
+
+        pendingFocusPlay = false;
+        resumeOnGain = false;
+
+        if (mp == null || pauseRamp) return;
+
+        if (fading) {
+            advanceFadeProgress();
+            rampToken++;
+            pauseRamp = false;
+
+            mp.pause();
+            if (mpNext != null) mpNext.pause();
+
+            fadeClockRunning = false;
+            lastFadeTickAt = SystemClock.elapsedRealtime();
+            applyVolumeNow();
+            fireState(false);
+            saveSession();
+            return;
+        }
+
+        if (!mp.getPlayWhenReady()) return;
+
+        rampPause();
     }
 
     /**
@@ -879,10 +1446,14 @@ public class Player {
         appCtx = ctx.getApplicationContext();
         cancelFade();
         rampToken++;
+        pauseRamp = false;
+        enginesReleased = false;
+        pendingFocusPlay = false;
         sleepAtMs = 0;
         sleepAtTrackEnd = false;
         try { sleepHandler.removeCallbacksAndMessages(null); } catch (Exception ignored) {}
         releasePlayer();
+        abandonFocus();
         queue.clear();
         index = -1;
         fireState(false);
@@ -969,91 +1540,221 @@ public class Player {
     // ----- queue editing -----
 
     public void playNext(Context ctx, Song s) {
+        if (s == null) return;
+
         if (queue.isEmpty() || index < 0) {
-            List<Song> one = new ArrayList<>();
-            one.add(s);
-            play(ctx, one, 0);
+            List<Song> songs = new ArrayList<>();
+            songs.add(s);
+            play(ctx, songs, 0);
             return;
         }
-        int at = index + 1;
-        queue.add(at, s);
-        if (fading && fadeNextIndex >= at) fadeNextIndex++;
-        if (gapNextIndex >= at) gapNextIndex++;
+
+        // Wrapped and shuffled preloads are invalid too, regardless of their index.
+        cancelGapless();
+
+        int insertionIndex = index + 1;
+        queue.add(insertionIndex, s);
+
+        if (fading && fadeNextIndex >= insertionIndex) {
+            fadeNextIndex++;
+        }
+
+        saveSession();
+
+        if (mp != null && isPlaying() && !fading) {
+            maybePreloadGapless();
+        }
     }
 
     public void addToQueue(Song s) {
-        if (!queue.isEmpty()) queue.add(s);
+        if (s == null) return;
+
+        boolean wasEmpty = queue.isEmpty();
+        cancelGapless();
+        queue.add(s);
+
+        if (wasEmpty || index < 0) {
+            index = 0;
+            savedReleasePos = 0;
+            enginesReleased = false;
+        }
+
+        saveSession();
+
+        if (mp != null && isPlaying() && !fading) {
+            maybePreloadGapless();
+        }
     }
 
     // ----- session restore (queue + position survive app restarts) -----
 
-    public void saveSession() {
+    private void persistSession(int positionMs, boolean synchronous) {
         if (appCtx == null) return;
+
         try {
             JSONArray ids = new JSONArray();
-            for (Song s : queue) ids.put(s.id);
-            appCtx.getSharedPreferences("session", Context.MODE_PRIVATE).edit()
+            for (Song song : queue) ids.put(song.id);
+
+            SharedPreferences.Editor editor = appCtx
+                    .getSharedPreferences("session", Context.MODE_PRIVATE)
+                    .edit()
                     .putString("ids", ids.toString())
                     .putInt("index", index)
-                    .putInt("pos", position())
-                    .apply();
-        } catch (Exception ignored) {}
+                    .putInt("pos", Math.max(0, positionMs));
+
+            if (synchronous) {
+                editor.commit();
+            } else {
+                editor.apply();
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
+    public void saveSession() {
+        int savedPosition = mp != null
+                ? position()
+                : (enginesReleased && current() != null ? savedReleasePos : 0);
+
+        persistSession(savedPosition, false);
     }
 
     /** Loads a saved queue paused at the saved position. Returns false if unusable. */
     public boolean restore(Context ctx, List<Song> songs, int idx, int posMs) {
-        if (songs == null || songs.isEmpty()) return false;
+        if (ctx == null || songs == null || songs.isEmpty()) return false;
+
         appCtx = ctx.getApplicationContext();
         queue = new ArrayList<>(songs);
         index = Math.max(0, Math.min(idx, queue.size() - 1));
-        Song s = current();
-        if (s == null) return false;
+
+        Song song = current();
+        if (song == null) return false;
+
         ensureService();
-        ensureFocus();
         cancelFade();
         releasePlayer();
-        volFactor = normAttenuation(s);
-        final Context fctx = ctx;
+        abandonFocus();
+
+        enginesReleased = false;
+        savedReleasePos = Math.max(0, posMs);
+        volFactor = combinedAttenuation(song);
+
+        final Context playbackContext = appCtx;
+
         try {
-            mp = makePlayer(0);
-            mp.addListener(new EngineListener(mp,
-                    () -> { if (fading) finalizeFade(); else onCompleted(fctx); },
-                    e -> onEngineError(fctx)));
-            mp.setMediaItem(MediaItem.fromUri(s.uri));
-            applySpeed(mp);
-            setPlayerVolume(mp, volFactor);
-            if (posMs > 0) {
-                try { mp.seekTo(posMs); } catch (Exception ignored) {}
-            }
-            mp.prepare(); // stays paused: playWhenReady defaults to false
-            attachFxIfReady(mp);
+            ExoPlayer player = makePlayer(0);
+            mp = player;
+
+            player.addListener(new EngineListener(
+                    player,
+                    () -> {
+                        if (mp != player) return;
+                        if (fading) finalizeFade();
+                        else onCompleted(playbackContext);
+                    },
+                    error -> {
+                        if (mp == player) onEngineError(playbackContext);
+                    }));
+
+            player.setMediaItem(MediaItem.fromUri(song.uri));
+            applySpeed(player);
+            setPlayerVolume(player, effVol());
+            player.setPlayWhenReady(false);
+            player.seekTo(savedReleasePos);
+            player.prepare();
+            attachFxIfReady(player);
         } catch (Exception e) {
             releasePlayer();
+            abandonFocus();
             return false;
         }
-        fireSong(s);
+
+        fireSong(song);
         fireState(false);
+        saveSession();
         return true;
     }
 
     // ----- crossfade -----
 
+    private void advanceFadeProgress() {
+        long now = SystemClock.elapsedRealtime();
+        long elapsed = lastFadeTickAt > 0
+                ? Math.max(0L, now - lastFadeTickAt) : 0L;
+        lastFadeTickAt = now;
+
+        if (!fading || mp == null || mpNext == null) {
+            fadeClockRunning = false;
+            return;
+        }
+
+        fadeAwaitReady = mpNext.getPlaybackState()
+                != androidx.media3.common.Player.STATE_READY
+                || !mpNext.isPlaying();
+
+        boolean canAdvance = !pauseRamp
+                && mp.getPlayWhenReady()
+                && mpNext.getPlayWhenReady()
+                && mp.isPlaying()
+                && !fadeAwaitReady;
+
+        if (fadeClockRunning && canAdvance && elapsed > 0L) {
+            float intervalSpeed = mp.getPlaybackParameters().speed;
+            if (!Float.isFinite(intervalSpeed) || intervalSpeed <= 0f) {
+                intervalSpeed = 1f;
+            }
+
+            fadeProgress = Math.min(
+                    1d,
+                    fadeProgress
+                            + elapsed * (double) intervalSpeed
+                            / Math.max(1L, fadeDurationMs));
+        }
+
+        fadeClockRunning = canAdvance;
+    }
+
     private void scheduleFadeChecks() {
-        fadeHandler.removeCallbacksAndMessages(null);
-        fadeHandler.postDelayed(this::fadeTick, 250);
+        // Dedicated ticker handler: wiping fadeHandler here used to also
+        // kill the pause/resume ramp runnables that share it.
+        tickHandler.removeCallbacksAndMessages(null);
+        tickHandler.postDelayed(this::fadeTick, 250);
     }
 
     private void fadeTick() {
         if (mp == null) return;
+
         try {
             if (fading) {
-                runFadeRamp();
-            } else if (mp.isPlaying()) {
+                advanceFadeProgress();
+
+                boolean playingIntent = mp.getPlayWhenReady()
+                        && mpNext != null
+                        && mpNext.getPlayWhenReady()
+                        && !pauseRamp;
+
+                boolean incomingReady = mpNext != null
+                        && mpNext.getPlaybackState()
+                        == androidx.media3.common.Player.STATE_READY
+                        && mpNext.isPlaying();
+
+                boolean outgoingEnded = mp.getPlaybackState()
+                        == androidx.media3.common.Player.STATE_ENDED;
+
+                if (playingIntent && incomingReady
+                        && (fadeProgress >= 1d || outgoingEnded)) {
+                    finalizeFade();
+                } else {
+                    runFadeRamp();
+                }
+            } else if (mp.isPlaying() && !pauseRamp) {
                 maybeBeginFade();
                 maybeSaveBookmark();
             }
-        } catch (Exception ignored) {}
-        if (mp != null) fadeHandler.postDelayed(this::fadeTick, 200);
+        } catch (Exception ignored) {
+        }
+
+        if (mp != null) tickHandler.postDelayed(this::fadeTick, 200);
     }
 
     // ----- per-track bookmarks (AntennaPod rule): long tracks only -----
@@ -1199,6 +1900,10 @@ public class Player {
         if (crossfadeMs() <= 0) return false;
         if (targetIndex < 0 || targetIndex >= queue.size() || targetIndex == index) return false;
         if (mp == null || fading) return false;
+        // Paused (incl. buffering-paused): a fade would start the next track
+        // and could leave it running at zero volume. Fall through to a plain
+        // startCurrent, exactly like the non-fade manual-next path.
+        if (!mp.getPlayWhenReady()) return false;
         SharedPreferences p = fxPrefs();
         int mode = p != null ? p.getInt(K_XF_MODE, 0) : 0;
         if (mode != 2 && !xfadeApplies()) return false;
@@ -1206,82 +1911,187 @@ public class Player {
     }
 
     private boolean beginFadeAt(int targetIndex) {
-        if (mp == null || fading) return false;
-        cancelGapless(); // the crossfade owns this transition
-        fadeNextIndex = targetIndex;
-        Song nextSong = queue.get(fadeNextIndex);
-        volFactorNext = combinedAttenuation(nextSong);
-        try {
-            mpNext = makePlayer(1);
-            final Context fctx = appCtx;
-            mpNext.addListener(new EngineListener(mpNext,
-                    () -> onCompleted(fctx), e -> onEngineError(fctx)));
-            mpNext.setMediaItem(MediaItem.fromUri(nextSong.uri));
-            applySpeed(mpNext);
-            setPlayerVolume(mpNext, 0f);
-            mpNext.setPlayWhenReady(true);
-            mpNext.prepare();
-        } catch (Exception e) {
-            releaseNext();
+        if (mp == null || fading || pauseRamp || !mp.getPlayWhenReady()) {
             return false;
         }
-        fading = true;
-        fadeStartAt = SystemClock.elapsedRealtime();
-        return true;
+        if (targetIndex < 0 || targetIndex >= queue.size()
+                || targetIndex == index || sleepAtTrackEnd) {
+            return false;
+        }
+
+        cancelGapless();
+
+        // Crossfade volumes must not compete with a resume-ramp runnable.
+        rampToken++;
+        pauseRamp = false;
+        transportLevel = 1f;
+
+        fadeNextIndex = targetIndex;
+        Song nextSong = queue.get(targetIndex);
+        volFactorNext = combinedAttenuation(nextSong);
+        fadeDurationMs = Math.max(1, crossfadeMs());
+        fadeProgress = 0d;
+        fadeClockRunning = false;
+        fadeAwaitReady = true;
+        lastFadeTickAt = SystemClock.elapsedRealtime();
+        fadeStartAt = lastFadeTickAt;
+
+        try {
+            ExoPlayer incoming = makePlayer(1);
+            mpNext = incoming;
+            fading = true;
+
+            incoming.addListener(new EngineListener(
+                    incoming,
+                    () -> {
+                        if (incoming == mpNext && fading) {
+                            finalizeFade();
+                            if (mp == incoming) onCompleted(appCtx);
+                        } else if (incoming == mp) {
+                            onCompleted(appCtx);
+                        }
+                    },
+                    error -> {
+                        if (incoming == mpNext) {
+                            cancelFade();
+                            if (mp != null
+                                    && mp.getPlaybackState()
+                                    == androidx.media3.common.Player.STATE_ENDED) {
+                                finishPlayback();
+                            }
+                        } else if (incoming == mp) {
+                            onEngineError(appCtx);
+                        }
+                    }));
+
+            incoming.setMediaItem(MediaItem.fromUri(nextSong.uri));
+            applySpeed(incoming);
+            setPlayerVolume(incoming, 0f);
+            incoming.setPlayWhenReady(true);
+            incoming.prepare();
+
+            scheduleFadeChecks();
+            return true;
+        } catch (Exception e) {
+            cancelFade();
+            return false;
+        }
     }
 
     private void runFadeRamp() {
-        int xf = crossfadeMs();
-        if (xf <= 0 || mp == null || mpNext == null) {
-            cancelFade();
+        if (!fading || mp == null || mpNext == null) return;
+
+        // Rendering volumes never changes progress and never promotes an engine.
+        float progress = (float) Math.max(0d, Math.min(1d, fadeProgress));
+        float duck = ducked ? 0.25f : 1f;
+
+        boolean incomingUnavailable = mpNext.getPlaybackState()
+                != androidx.media3.common.Player.STATE_READY;
+
+        fadeAwaitReady = incomingUnavailable
+                || (mpNext.getPlayWhenReady() && !mpNext.isPlaying());
+
+        if (incomingUnavailable) {
+            setPlayerVolume(mp, volFactor * duck);
+            setPlayerVolume(mpNext, 0f);
             return;
         }
-        float t = (SystemClock.elapsedRealtime() - fadeStartAt) / (float) xf;
-        if (t >= 1f) {
-            finalizeFade();
-            return;
-        }
-        t = Math.max(0f, t);
-        setPlayerVolume(mp, (1f - t) * volFactor);
-        setPlayerVolume(mpNext, t * volFactorNext);
+
+        setPlayerVolume(mp, (1f - progress) * volFactor * duck);
+        setPlayerVolume(mpNext, progress * volFactorNext * duck);
     }
 
     private void finalizeFade() {
-        if (mpNext == null) {
-            fading = false;
+        if (!fading || mpNext == null) return;
+
+        if (sleepAtTrackEnd) {
+            cancelFade();
+
+            if (mp != null
+                    && mp.getPlaybackState()
+                    == androidx.media3.common.Player.STATE_ENDED) {
+                sleepAtTrackEnd = false;
+                finishPlayback();
+            }
             return;
         }
-        ExoPlayer old = mp;
-        mp = mpNext;
+
+        if (fadeNextIndex < 0 || fadeNextIndex >= queue.size()) {
+            cancelFade();
+            return;
+        }
+
+        ExoPlayer outgoing = mp;
+        ExoPlayer incoming = mpNext;
+        int incomingIndex = fadeNextIndex;
+        boolean playIntent = incoming.getPlayWhenReady();
+
+        mp = incoming;
         mpNext = null;
         balCur = balNext;
         balNext = null;
-        index = fadeNextIndex;
-        volFactor = volFactorNext;
+
+        index = incomingIndex;
+        fadeNextIndex = -1;
         fading = false;
-        if (old != null) {
-            try { old.release(); } catch (Exception ignored) {}
+        fadeAwaitReady = false;
+        fadeClockRunning = false;
+        fadeProgress = 0d;
+        lastFadeTickAt = 0L;
+
+        rampToken++;
+        pauseRamp = false;
+        transportLevel = 1f;
+        errorStreak = 0;
+
+        Song song = current();
+        volFactor = combinedAttenuation(song);
+
+        if (outgoing != null) {
+            try {
+                outgoing.release();
+            } catch (Exception ignored) {
+            }
         }
+
         setPlayerVolume(mp, effVol());
         attachFxIfReady(mp);
-        Song s = current();
-        if (s != null) {
-            if (skipBookmarkOnce) skipBookmarkOnce = false;
-            else maybeResumeBookmark(appCtx, s);
-            fireSong(s);
-            fireState(true);
+
+        if (song != null) {
+            skipBookmarkOnce = false;
+            fireSong(song);
+            fireState(playIntent);
             analyzeCurrentSong();
             saveSession();
-            maybePreloadGapless();
+
+            if (playIntent
+                    && mp.getPlaybackState()
+                    != androidx.media3.common.Player.STATE_ENDED) {
+                maybePreloadGapless();
+            }
         }
     }
 
     private void cancelFade() {
-        if (mpNext != null) releaseNext();
+        ExoPlayer incoming = mpNext;
+
+        mpNext = null;
+        balNext = null;
         fading = false;
-        if (mp != null) {
-            setPlayerVolume(mp, effVol());
+        fadeNextIndex = -1;
+        fadeAwaitReady = false;
+        fadeClockRunning = false;
+        fadeProgress = 0d;
+        lastFadeTickAt = 0L;
+
+        if (incoming != null) {
+            try {
+                incoming.release();
+            } catch (Exception ignored) {
+            }
         }
+
+        applyVolumeNow();
     }
 
     private void releaseNext() {
@@ -1298,54 +2108,107 @@ public class Player {
     private static final int[] PRO_ISO = {31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000};
 
     private void attachEffects(int sessionId) {
-        if (sessionId == 0 || sessionId == lastFxSession) return;
-        lastFxSession = sessionId;
-        releaseEffects();
-        if (appCtx == null) return;
+        if (sessionId <= 0 || appCtx == null) return;
+
         SharedPreferences p = fxPrefs();
         if (p == null) return;
-        boolean eqOn = p.getBoolean(K_EQ_ON, false);
-        if (p.getBoolean(K_PRO_EQ, true)) {
-            try {
-                dynProc = buildDynamics(sessionId, p);
-                dynProc.setEnabled(eqOn);
-            } catch (Exception e) {
-                dynProc = null; // fall back to the legacy equalizer silently
-            }
+
+        Map<String, ?> settings = new java.util.HashMap<>(p.getAll());
+        int boost = effectiveBoostMb();
+
+        if (sessionId == lastFxSession
+                && settings.equals(fxSettingsSnapshot)
+                && boost == fxBoostSnapshot) {
+            return;
         }
-        if (dynProc == null) {
+
+        releaseEffects();
+
+        boolean eqOn = p.getBoolean(K_EQ_ON, false);
+
+        if (p.getBoolean(K_PRO_EQ, true)) {
+            DynamicsProcessing candidate = null;
             try {
-                equalizer = new Equalizer(0, sessionId);
-                int preset = p.getInt(K_EQ_PRESET, -1);
-                if (preset >= 0 && preset < equalizer.getNumberOfPresets()) {
-                    equalizer.usePreset((short) preset);
-                } else {
-                    for (short b = 0; b < equalizer.getNumberOfBands(); b++) {
-                        int lvl = p.getInt(K_BAND + b, Integer.MIN_VALUE);
-                        if (lvl != Integer.MIN_VALUE) {
-                            equalizer.setBandLevel(b, (short) lvl);
-                        }
+                candidate = buildDynamics(sessionId, p);
+                candidate.setEnabled(eqOn);
+                dynProc = candidate;
+            } catch (Exception e) {
+                if (candidate != null) {
+                    try {
+                        candidate.release();
+                    } catch (Exception ignored) {
                     }
                 }
-                equalizer.setEnabled(eqOn);
+                dynProc = null;
+            }
+        }
+
+        if (dynProc == null) {
+            Equalizer candidate = null;
+            try {
+                candidate = new Equalizer(0, sessionId);
+                int preset = p.getInt(K_EQ_PRESET, -1);
+
+                if (preset >= 0 && preset < candidate.getNumberOfPresets()) {
+                    candidate.usePreset((short) preset);
+                } else {
+                    short[] range = candidate.getBandLevelRange();
+                    for (short band = 0; band < candidate.getNumberOfBands(); band++) {
+                        int level = p.getInt(K_BAND + band, 0);
+                        level = Math.max(range[0], Math.min(range[1], level));
+                        candidate.setBandLevel(band, (short) level);
+                    }
+                }
+
+                candidate.setEnabled(eqOn);
+                equalizer = candidate;
             } catch (Exception e) {
+                if (candidate != null) {
+                    try {
+                        candidate.release();
+                    } catch (Exception ignored) {
+                    }
+                }
                 equalizer = null;
             }
         }
+
+        LoudnessEnhancer loudnessCandidate = null;
         try {
-            loudness = new LoudnessEnhancer(sessionId);
-            loudness.setTargetGain(effectiveBoostMb());
-            loudness.setEnabled(eqOn);
+            loudnessCandidate = new LoudnessEnhancer(sessionId);
+            loudnessCandidate.setTargetGain(boost);
+            loudnessCandidate.setEnabled(boost > 0);
+            loudness = loudnessCandidate;
         } catch (Exception e) {
+            if (loudnessCandidate != null) {
+                try {
+                    loudnessCandidate.release();
+                } catch (Exception ignored) {
+                }
+            }
             loudness = null;
         }
+
+        BassBoost bassCandidate = null;
         try {
-            bassBoost = new BassBoost(0, sessionId);
-            bassBoost.setStrength((short) p.getInt(K_BASS, 0));
-            bassBoost.setEnabled(eqOn && p.getInt(K_BASS, 0) > 0);
+            bassCandidate = new BassBoost(0, sessionId);
+            int strength = Math.max(0, Math.min(1000, p.getInt(K_BASS, 0)));
+            bassCandidate.setStrength((short) strength);
+            bassCandidate.setEnabled(eqOn && strength > 0);
+            bassBoost = bassCandidate;
         } catch (Exception e) {
+            if (bassCandidate != null) {
+                try {
+                    bassCandidate.release();
+                } catch (Exception ignored) {
+                }
+            }
             bassBoost = null;
         }
+
+        lastFxSession = sessionId;
+        fxSettingsSnapshot = settings;
+        fxBoostSnapshot = boost;
     }
 
     /**
@@ -1378,24 +2241,31 @@ public class Player {
                     true, true, 0, 1f, 100f, 10f, -1f, 0f));
         }
         DynamicsProcessing dp = new DynamicsProcessing(0, sessionId, b.build());
-        if (newApi) {
-            Object limB = Class
-                    .forName("android.media.audiofx.DynamicsProcessing$LimiterBase$Config$Builder")
-                    .getConstructor().newInstance();
-            Class<?> lb = limB.getClass();
-            lb.getMethod("setEnabled", boolean.class).invoke(limB, true);
-            lb.getMethod("setAttackTime", float.class).invoke(limB, 1f);
-            lb.getMethod("setReleaseTime", float.class).invoke(limB, 100f);
-            lb.getMethod("setRatio", float.class).invoke(limB, 10f);
-            lb.getMethod("setThreshold", float.class).invoke(limB, -1f);
-            lb.getMethod("setPostGain", float.class).invoke(limB, 0f);
-            Object limCfg = lb.getMethod("build").invoke(limB);
-            DynamicsProcessing.class.getMethod("setLimiter", int.class, limCfg.getClass())
-                    .invoke(dp, 0, limCfg);
-        }
-        for (int i = 0; i < 10; i++) {
-            float gdb = p.getInt(K_PBAND + i, 0) / 100f;
-            dp.setPreEqBandAllChannelsTo(i, makeEqBand(newApi, true, PRO_ISO[i], gdb));
+        try {
+            if (newApi) {
+                Object limB = Class
+                        .forName("android.media.audiofx.DynamicsProcessing$LimiterBase$Config$Builder")
+                        .getConstructor().newInstance();
+                Class<?> lb = limB.getClass();
+                lb.getMethod("setEnabled", boolean.class).invoke(limB, true);
+                lb.getMethod("setAttackTime", float.class).invoke(limB, 1f);
+                lb.getMethod("setReleaseTime", float.class).invoke(limB, 100f);
+                lb.getMethod("setRatio", float.class).invoke(limB, 10f);
+                lb.getMethod("setThreshold", float.class).invoke(limB, -1f);
+                lb.getMethod("setPostGain", float.class).invoke(limB, 0f);
+                Object limCfg = lb.getMethod("build").invoke(limB);
+                DynamicsProcessing.class.getMethod("setLimiter", int.class, limCfg.getClass())
+                        .invoke(dp, 0, limCfg);
+            }
+            for (int i = 0; i < 10; i++) {
+                float gdb = p.getInt(K_PBAND + i, 0) / 100f;
+                dp.setPreEqBandAllChannelsTo(i, makeEqBand(newApi, true, PRO_ISO[i], gdb));
+            }
+        } catch (Exception e) {
+            // A half-configured DynamicsProcessing must not leak: release it
+            // before the caller falls back to the legacy EQ.
+            try { dp.release(); } catch (Exception ignored) {}
+            throw e;
         }
         return dp;
     }
@@ -1453,9 +2323,10 @@ public class Player {
             int hb = maxEqBoostMb(p);
             if (hb > 0) db -= hb / 100f;
         }
-        // AutoEq profile preamp (always <= 0 in the AutoEq dataset): additive dB term.
+        // AutoEq profile preamp (always <= 0 in the AutoEq dataset): additive
+        // dB term — applied only while the EQ is on, like the headroom above.
         int aep = p.getInt(K_AUTOEQ_PRE, 0);
-        if (aep != 0) db += aep / 100f;
+        if (aep != 0 && p.getBoolean(K_EQ_ON, false)) db += aep / 100f;
         if (db >= 0) return 1f;
         return (float) Math.pow(10.0, db / 20.0);
     }
@@ -1474,14 +2345,34 @@ public class Player {
     /** Re-apply saved FX settings to the live effects (called by the EQ UI). */
     public void refreshAudioFx() {
         refreshBalance();
-        if (mp == null) return;
-        attachFxIfReady(mp);
-        // volume may change with normalization toggles/boosts
-        Song s = current();
-        if (!fading && s != null) {
-            volFactor = normAttenuation(s);
-            setPlayerVolume(mp, effVol());
+
+        if (balCur != null) balCur.setGains(balL, balR);
+        if (balNext != null) balNext.setGains(balL, balR);
+        if (balGap != null) balGap.setGains(balL, balR);
+
+        Song song = current();
+        if (song != null) {
+            volFactor = combinedAttenuation(song);
         }
+
+        if (mpNext != null
+                && fadeNextIndex >= 0
+                && fadeNextIndex < queue.size()) {
+            volFactorNext = combinedAttenuation(queue.get(fadeNextIndex));
+        }
+
+        if (mpGapless != null
+                && gapNextIndex >= 0
+                && gapNextIndex < queue.size()) {
+            volFactorGap = combinedAttenuation(queue.get(gapNextIndex));
+            setPlayerVolume(
+                    mpGapless,
+                    volFactorGap * (ducked ? 0.25f : 1f));
+        }
+
+        // attachEffects compares the settings snapshot before rebuilding.
+        attachFxIfReady(mp);
+        applyVolumeNow();
     }
 
     private void releaseEffects() {
@@ -1536,15 +2427,10 @@ public class Player {
     }
 
     private void applyCombinedGainLive(Song cur) {
-        if (mp != null && !fading) {
-            volFactor = combinedAttenuation(cur);
-            setPlayerVolume(mp, effVol());
-            if (loudness != null) {
-                try {
-                    loudness.setTargetGain(effectiveBoostMb());
-                } catch (Exception ignored) {}
-            }
-        }
+        Song currentSong = current();
+        if (cur == null || currentSong == null || cur.id != currentSong.id) return;
+
+        refreshAudioFx();
     }
 
     /** Called when ReplayGain settings change: re-parse is cached, just re-apply. */
@@ -1582,7 +2468,7 @@ public class Player {
         sleepAtMs = SystemClock.elapsedRealtime() + minutes * 60_000L;
         sleepHandler.postDelayed(() -> {
             sleepAtMs = 0;
-            if (mp != null && mp.isPlaying() && appCtx != null) toggle(appCtx);
+            if (mp != null && wantsPlay() && appCtx != null) toggle(appCtx);
             else fireState(false);
         }, minutes * 60_000L);
     }
@@ -1591,6 +2477,16 @@ public class Player {
         sleepHandler.removeCallbacksAndMessages(null);
         sleepAtMs = 0;
         sleepAtTrackEnd = true;
+
+        cancelFade();
+        cancelGapless();
+
+        if (mp != null
+                && mp.getPlaybackState()
+                == androidx.media3.common.Player.STATE_ENDED) {
+            sleepAtTrackEnd = false;
+            finishPlayback();
+        }
     }
 
     public void cancelSleep() {
@@ -1601,7 +2497,7 @@ public class Player {
 
     /** v5.6.6: the fixed sleep clock fired — same end state as the countdown. */
     public void sleepNow() {
-        if (mp != null && mp.isPlaying() && appCtx != null) toggle(appCtx);
+        if (mp != null && wantsPlay() && appCtx != null) toggle(appCtx);
         else fireState(false);
     }
 
@@ -1627,13 +2523,13 @@ public class Player {
     }
 
     private void soundDefaultAlarm(Context ctx) {
+        final android.media.MediaPlayer rp = new android.media.MediaPlayer();
         try {
             android.net.Uri uri = android.media.RingtoneManager
                     .getDefaultUri(android.media.RingtoneManager.TYPE_ALARM);
             if (uri == null) uri = android.media.RingtoneManager
                     .getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE);
-            if (uri == null) return;
-            final android.media.MediaPlayer rp = new android.media.MediaPlayer();
+            if (uri == null) { rp.release(); return; }
             rp.setDataSource(ctx, uri);
             rp.setAudioStreamType(android.media.AudioManager.STREAM_ALARM);
             rp.setLooping(true);
@@ -1641,9 +2537,12 @@ public class Player {
             rp.start();
             new android.os.Handler(android.os.Looper.getMainLooper())
                     .postDelayed(() -> {
-                        try { rp.stop(); rp.release(); } catch (Exception ignored) {}
+                        try { rp.stop(); } catch (Exception ignored) {}
+                        try { rp.release(); } catch (Exception ignored) {}
                     }, 60_000);
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            try { rp.release(); } catch (Exception ignored) {}
+        }
     }
 
     public boolean isSleepActive() { return sleepAtMs > 0 || sleepAtTrackEnd; }
@@ -1671,17 +2570,66 @@ public class Player {
     public void onServiceDestroyed() {
         unregisterRouteCallback();
         serviceStarted = false;
+
+        if (mp != null) {
+            savedReleasePos = position();
+            enginesReleased = current() != null;
+        }
+
+        // Commit while the captured position and queue still describe this session.
+        persistSession(savedReleasePos, true);
+
+        rampToken++;
+        pauseRamp = false;
+
+        tickHandler.removeCallbacksAndMessages(null);
+        wakeHandler.removeCallbacks(wakeStep);
+
+        releasePlayer();
+        abandonFocus();
+        fireState(false);
     }
 
     private void releasePlayer() {
-        cancelGapless();
-        releaseNext();
+        rampToken++;
+        pauseRamp = false;
+
+        // Clear roles before release so callbacks cannot act on released engines.
+        ExoPlayer current = mp;
+        ExoPlayer incoming = mpNext;
+        ExoPlayer gapless = mpGapless;
+
+        mp = null;
+        mpNext = null;
+        mpGapless = null;
+
+        balCur = null;
+        balNext = null;
+        balGap = null;
+
+        gapNextIndex = -1;
+        gapReady = false;
+        fadeNextIndex = -1;
         fading = false;
-        if (mp != null) {
-            try { mp.release(); } catch (Exception ignored) {}
-            mp = null;
-            balCur = null;
+        fadeAwaitReady = false;
+        fadeClockRunning = false;
+        fadeProgress = 0d;
+        lastFadeTickAt = 0L;
+
+        transportLevel = 1f;
+        currentVolume = 0f;
+
+        tickHandler.removeCallbacksAndMessages(null);
+
+        for (ExoPlayer player : new ExoPlayer[]{current, incoming, gapless}) {
+            if (player != null) {
+                try {
+                    player.release();
+                } catch (Exception ignored) {
+                }
+            }
         }
+
         releaseEffects();
     }
 }

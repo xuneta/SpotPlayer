@@ -17,7 +17,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Your Library"
+            android:text="@string/auto_your_library"
             android:textColor="@color/spotify_white"
             android:textSize="20sp"
             android:textStyle="bold" />
@@ -50,12 +50,14 @@
             android:id="@+id/sortChip"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:gravity="center_vertical"
             android:background="@drawable/bg_sort_chip"
             android:paddingStart="14dp"
             android:paddingEnd="14dp"
             android:paddingTop="6dp"
             android:paddingBottom="6dp"
-            android:text="Recently added"
+            android:text="@string/auto_recently_added"
             android:textColor="@color/spotify_white"
             android:textSize="13sp" />
 
@@ -63,13 +65,15 @@
             android:id="@+id/dupChip"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:gravity="center_vertical"
             android:layout_marginStart="10dp"
             android:background="@drawable/bg_sort_chip"
             android:paddingStart="14dp"
             android:paddingEnd="14dp"
             android:paddingTop="6dp"
             android:paddingBottom="6dp"
-            android:text="Duplicates"
+            android:text="@string/auto_duplicates"
             android:textColor="@color/spotify_white"
             android:textSize="13sp" />
 
@@ -77,6 +81,7 @@
             android:id="@+id/shufflePlayBtn"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:minHeight="48dp"
             android:layout_marginStart="10dp"
             android:background="@drawable/bg_shuffle_pill"
             android:foreground="@drawable/row_selector"
@@ -90,7 +95,7 @@
             <ImageView
                 android:layout_width="16dp"
                 android:layout_height="16dp"
-                android:contentDescription="Shuffle play"
+                android:contentDescription="@string/auto_shuffle_play"
                 android:src="@drawable/ic_shuffle"
                 android:tint="@color/spotify_green" />
 
@@ -98,7 +103,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
-                android:text="Shuffle play"
+                android:text="@string/auto_shuffle_play"
                 android:textColor="@color/spotify_white"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -108,6 +113,7 @@
             android:id="@+id/eqChip"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:minHeight="48dp"
             android:layout_marginStart="10dp"
             android:background="@drawable/bg_shuffle_pill"
             android:foreground="@drawable/row_selector"
@@ -121,7 +127,7 @@
             <ImageView
                 android:layout_width="16dp"
                 android:layout_height="16dp"
-                android:contentDescription="Sound settings"
+                android:contentDescription="@string/auto_sound_settings"
                 android:src="@drawable/ic_equalizer"
                 android:tint="@color/spotify_green" />
 
@@ -129,7 +135,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="6dp"
-                android:text="Sound"
+                android:text="@string/auto_sound"
                 android:textColor="@color/spotify_white"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -164,7 +170,7 @@
                     android:layout_width="26dp"
                     android:layout_height="26dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Liked songs"
+                    android:contentDescription="@string/auto_liked_songs"
                     android:src="@drawable/ic_heart_filled"
                     android:tint="@color/spotify_white" />
             </FrameLayout>
@@ -179,7 +185,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Liked Songs"
+                    android:text="@string/auto_liked_songs"
                     android:textColor="@color/spotify_white"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -215,7 +221,7 @@
                     android:layout_width="26dp"
                     android:layout_height="26dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Artists"
+                    android:contentDescription="@string/auto_artists"
                     android:src="@drawable/ic_person"
                     android:tint="@color/spotify_white" />
             </FrameLayout>
@@ -230,7 +236,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Artists"
+                    android:text="@string/auto_artists"
                     android:textColor="@color/spotify_white"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -266,7 +272,7 @@
                     android:layout_width="26dp"
                     android:layout_height="26dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Albums"
+                    android:contentDescription="@string/auto_albums"
                     android:src="@drawable/ic_album"
                     android:tint="@color/spotify_white" />
             </FrameLayout>
@@ -281,7 +287,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Albums"
+                    android:text="@string/auto_albums"
                     android:textColor="@color/spotify_white"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -317,7 +323,7 @@
                     android:layout_width="26dp"
                     android:layout_height="26dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Genres"
+                    android:contentDescription="@string/auto_genres"
                     android:src="@drawable/ic_note"
                     android:tint="@color/spotify_white" />
             </FrameLayout>
@@ -332,7 +338,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Genres"
+                    android:text="@string/auto_genres"
                     android:textColor="@color/spotify_white"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -368,7 +374,7 @@
                     android:layout_width="26dp"
                     android:layout_height="26dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Recently added"
+                    android:contentDescription="@string/auto_recently_added"
                     android:src="@drawable/ic_plus"
                     android:tint="@color/spotify_white" />
             </FrameLayout>
@@ -383,7 +389,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Recently Added"
+                    android:text="@string/auto_recently_added"
                     android:textColor="@color/spotify_white"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -419,7 +425,7 @@
                     android:layout_width="26dp"
                     android:layout_height="26dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Top rated"
+                    android:contentDescription="@string/auto_top_rated"
                     android:src="@drawable/ic_star"
                     android:tint="@color/spotify_white" />
             </FrameLayout>
@@ -434,7 +440,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Top Rated"
+                    android:text="@string/auto_top_rated"
                     android:textColor="@color/spotify_white"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -470,7 +476,7 @@
                     android:layout_width="26dp"
                     android:layout_height="26dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Most played"
+                    android:contentDescription="@string/auto_most_played"
                     android:src="@drawable/ic_chart"
                     android:tint="@color/spotify_white" />
             </FrameLayout>
@@ -485,7 +491,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Most Played"
+                    android:text="@string/auto_most_played"
                     android:textColor="@color/spotify_white"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -494,7 +500,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="Your top songs on this phone"
+                    android:text="@string/auto_your_top_songs_on_this_phone"
                     android:textColor="@color/spotify_gray"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -521,7 +527,7 @@
                     android:layout_width="26dp"
                     android:layout_height="26dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Daily Mix"
+                    android:contentDescription="@string/auto_daily_mix"
                     android:src="@drawable/ic_shuffle"
                     android:tint="@color/spotify_white" />
             </FrameLayout>
@@ -536,7 +542,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Daily Mix"
+                    android:text="@string/auto_daily_mix"
                     android:textColor="@color/spotify_white"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -545,7 +551,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="A fresh mix from your taste"
+                    android:text="@string/auto_a_fresh_mix_from_your_taste"
                     android:textColor="@color/spotify_gray"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -556,7 +562,7 @@
             android:layout_height="wrap_content"
             android:layout_marginStart="16dp"
             android:layout_marginTop="10dp"
-            android:text="Playlists"
+            android:text="@string/auto_playlists"
             android:textColor="@color/spotify_gray"
             android:textSize="13sp"
             android:textStyle="bold" />
@@ -582,7 +588,7 @@
                     android:layout_width="26dp"
                     android:layout_height="26dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Your stats"
+                    android:contentDescription="@string/auto_your_stats"
                     android:src="@drawable/ic_chart"
                     android:tint="@color/spotify_white" />
             </FrameLayout>
@@ -597,7 +603,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Your Stats"
+                    android:text="@string/auto_your_stats"
                     android:textColor="@color/spotify_white"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -606,7 +612,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
-                    android:text="Listening time, top songs and artists"
+                    android:text="@string/auto_listening_time_top_songs_and_artists"
                     android:textColor="@color/spotify_gray"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -639,7 +645,7 @@
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:layout_gravity="center"
-                    android:contentDescription="New playlist"
+                    android:contentDescription="@string/auto_new_playlist"
                     android:src="@drawable/ic_plus"
                     android:tint="@color/spotify_white" />
             </FrameLayout>
@@ -648,7 +654,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
-                android:text="New playlist"
+                android:text="@string/auto_new_playlist"
                 android:textColor="@color/spotify_white"
                 android:textSize="16sp"
                 android:textStyle="bold" />
@@ -661,7 +667,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="48dp"
         android:gravity="center"
-        android:text="Nothing here yet.\nSongs on this phone will appear in your library."
+        android:text="@string/auto_nothing_here_yet_nsongs_on_this_phone_wi"
         android:textColor="@color/spotify_gray"
         android:textSize="15sp"
         android:visibility="gone" />

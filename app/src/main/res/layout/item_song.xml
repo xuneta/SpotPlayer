@@ -13,7 +13,7 @@
         android:layout_width="56dp"
         android:layout_height="56dp"
         android:background="@drawable/bg_art_rounded_sm"
-        android:contentDescription="Album art"
+        android:contentDescription="@string/auto_album_art"
         android:scaleType="centerCrop"
         android:src="@drawable/ic_note" />
 
@@ -49,7 +49,7 @@
         android:layout_width="16dp"
         android:layout_height="16dp"
         android:layout_marginStart="8dp"
-        android:contentDescription="Now playing"
+        android:contentDescription="@string/auto_now_playing"
         android:src="@drawable/ic_eq"
         android:tint="@color/spotify_green"
         android:visibility="gone" />

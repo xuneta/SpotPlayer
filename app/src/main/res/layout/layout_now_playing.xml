@@ -34,10 +34,10 @@
             <ImageView
                 android:id="@+id/npClose"
                 android:background="@drawable/bg_soft_circle"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:contentDescription="Close"
-                android:padding="3dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="@string/auto_close"
+                android:padding="12dp"
                 android:src="@drawable/ic_chevron_down"
                 android:tint="@color/spotify_white" />
 
@@ -52,7 +52,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:letterSpacing="0.12"
-                    android:text="PLAYING FROM LIBRARY"
+                    android:text="@string/auto_playing_from_library"
                     android:textColor="@color/spotify_gray"
                     android:textSize="10sp" />
 
@@ -75,33 +75,33 @@
 
                 <ImageView
                     android:id="@+id/npQueueBtn"
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:background="@drawable/bg_soft_circle"
-                    android:contentDescription="Queue"
-                    android:padding="4dp"
+                    android:contentDescription="@string/auto_queue"
+                    android:padding="13dp"
                     android:src="@drawable/ic_queue"
                     android:tint="@color/spotify_white" />
 
                 <ImageView
                     android:id="@+id/npSleepBtn"
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/bg_soft_circle"
-                    android:contentDescription="Sleep timer"
-                    android:padding="5dp"
+                    android:contentDescription="@string/auto_sleep_timer"
+                    android:padding="14dp"
                     android:src="@drawable/ic_moon"
                     android:tint="@color/spotify_gray" />
 
                 <ImageView
                     android:id="@+id/npCarBtn"
-                    android:layout_width="30dp"
-                    android:layout_height="30dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/bg_soft_circle"
-                    android:contentDescription="Car mode"
-                    android:padding="5dp"
+                    android:contentDescription="@string/auto_car_mode"
+                    android:padding="14dp"
                     android:src="@drawable/ic_car"
                     android:tint="@color/spotify_gray" />
             </LinearLayout>
@@ -113,7 +113,7 @@
             android:layout_height="320dp"
             android:layout_marginTop="30dp"
             android:background="@drawable/bg_art_rounded"
-            android:contentDescription="Album art"
+            android:contentDescription="@string/auto_album_art"
             android:scaleType="centerCrop"
             android:src="@drawable/ic_note" />
 
@@ -170,18 +170,18 @@
 
             <ImageView
                 android:id="@+id/npLike"
-                android:padding="2dp"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
+                android:padding="12dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_marginStart="14dp"
-                android:contentDescription="Like"
+                android:contentDescription="@string/auto_like"
                 android:src="@drawable/ic_heart_outline" />
         </LinearLayout>
 
         <com.arman.spotplayer.WaveformView
             android:id="@+id/npWave"
             android:layout_width="match_parent"
-            android:layout_height="44dp"
+            android:layout_height="48dp"
             android:layout_marginTop="14dp"
             android:visibility="gone" />
 
@@ -234,16 +234,16 @@
 
             <FrameLayout
                 android:layout_width="0dp"
-                android:layout_height="34dp"
+                android:layout_height="48dp"
                 android:layout_weight="1">
 
                 <ImageView
                     android:id="@+id/npShuffle"
-                    android:padding="5dp"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:padding="16dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Shuffle"
+                    android:contentDescription="@string/auto_shuffle"
                     android:src="@drawable/ic_shuffle" />
 
                 <View
@@ -262,11 +262,11 @@
 
                 <ImageView
                     android:id="@+id/npPrev"
-                    android:padding="4dp"
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
+                    android:padding="9dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Previous"
+                    android:contentDescription="@string/auto_previous"
                     android:src="@drawable/ic_prev"
                     android:tint="@color/spotify_white" />
             </FrameLayout>
@@ -282,9 +282,9 @@
                     android:layout_width="36dp"
                     android:layout_height="36dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Play or pause"
+                    android:contentDescription="@string/auto_play_or_pause"
                     android:src="@drawable/ic_play"
-                    android:tint="#121212" />
+                    android:tint="@color/spotify_black" />
             </FrameLayout>
 
             <FrameLayout
@@ -294,11 +294,11 @@
 
                 <ImageView
                     android:id="@+id/npNext"
-                    android:padding="4dp"
-                    android:layout_width="38dp"
-                    android:layout_height="38dp"
+                    android:padding="9dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Next"
+                    android:contentDescription="@string/auto_next"
                     android:src="@drawable/ic_next"
                     android:tint="@color/spotify_white" />
             </FrameLayout>
@@ -306,16 +306,16 @@
             <FrameLayout
                 android:id="@+id/npRepeatBtn"
                 android:layout_width="0dp"
-                android:layout_height="34dp"
+                android:layout_height="48dp"
                 android:layout_weight="1">
 
                 <ImageView
                     android:id="@+id/npRepeat"
-                    android:padding="5dp"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:padding="16dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:layout_gravity="center"
-                    android:contentDescription="Repeat"
+                    android:contentDescription="@string/auto_repeat"
                     android:src="@drawable/ic_repeat" />
 
                 <TextView
@@ -352,7 +352,7 @@
                 android:id="@+id/npLyricsBtn"
                 android:layout_width="26dp"
                 android:layout_height="26dp"
-                android:contentDescription="Lyrics"
+                android:contentDescription="@string/auto_lyrics"
                 android:padding="2dp"
                 android:src="@drawable/ic_lyrics"
                 android:tint="@color/spotify_gray" />
@@ -382,7 +382,7 @@
                 android:paddingEnd="12dp"
                 android:paddingTop="5dp"
                 android:paddingBottom="5dp"
-                android:text="A–B"
+                android:text="@string/auto_a_b"
                 android:textColor="@color/spotify_white"
                 android:textSize="13sp"
                 android:textStyle="bold" />
@@ -396,7 +396,7 @@
                 android:id="@+id/npShareBtn"
                 android:layout_width="26dp"
                 android:layout_height="26dp"
-                android:contentDescription="Share"
+                android:contentDescription="@string/auto_share"
                 android:padding="2dp"
                 android:src="@drawable/ic_share"
                 android:tint="@color/spotify_gray" />
@@ -421,7 +421,7 @@
         android:layout_gravity="top|center_horizontal"
         android:layout_marginTop="188dp"
         android:alpha="0"
-        android:contentDescription="Liked"
+        android:contentDescription="@string/auto_liked"
         android:src="@drawable/ic_heart_filled"
         android:visibility="gone" />
 </FrameLayout>
