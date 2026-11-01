@@ -337,14 +337,21 @@ public class PlaybackService extends Service implements Player.Listener {
         main.post(() -> {
             if (destroyed) return;
 
-            updateAll();
-
             // Read the latest state rather than trusting a queued callback's value.
             if (Player.get().isPlaying()) {
+                // Back to foreground while playing so the system keeps playback alive.
+                startForeground(NOTIF_ID, buildNotification());
+                updateAll();
                 ensureTicker();
             } else {
                 main.removeCallbacks(stateTicker);
                 tickerOn = false;
+                // Demote from foreground while paused: a foreground service's
+                // notification cannot be swiped away even with ongoing=false.
+                // stopForeground(false) keeps it posted as an ordinary
+                // notification, which IS dismissible (delete intent = ACTION_STOP).
+                stopForeground(false);
+                updateAll();
             }
         });
     }
