@@ -14,6 +14,7 @@ A Spotify-style Android music player for **your own local music library** — no
 - **Playback engine** — Media3 / ExoPlayer with three engines for crossfade and gapless playback, smart (favorites-weighted) shuffle, repeat modes, speed control, sleep timer, A–B repeat, shake-to-skip, **trim silence** (v5.6), mini-player swipe gestures — drag up to expand, drag down to stop completely (v5.6.3)
 - **Sound** — 10-band parametric EQ (DynamicsProcessing) with limiter and auto headroom, legacy EQ fallback, AutoEq headphone profiles, ReplayGain (tags first, built-in scanner second), loudness normalization, stereo balance, per-output EQ snapshots
 - **Lyrics** — embedded tags and sidecar `.lrc` files, synced highlighting, online fallback via the free LRCLIB API with local caching, built-in lyrics editor
+- **Cut audio** — trim MP3 songs by time range: keep a part or remove a part, frame-accurate cut with no re-encoding; the original is never touched (v5.6.16)
 - **Extras** — waveform seekbar, AMOLED pure-black theme, listening stats, car mode, home-screen widget, headset button controls, bookmarks for long tracks, built-in crash reporter (v5.6.1)
 
 ## License
@@ -45,7 +46,7 @@ Requirements: JDK 21, Android SDK platform 34 + build-tools 34.0.0. The Media3 A
 
 - Plain Java (Android framework) + Media3 ExoPlayer 1.11.1 — no AndroidX app code, no Kotlin
 - Package: `com.arman.spotplayer` · minSdk 26 · targetSdk 34
-- Current version: **5.6.15** (versionCode 44)
+- Current version: **5.6.16** (versionCode 45)
 
 ## License
 
