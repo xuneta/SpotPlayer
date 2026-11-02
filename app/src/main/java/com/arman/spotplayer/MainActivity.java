@@ -3466,7 +3466,7 @@ public class MainActivity extends Activity implements Player.Listener {
                 .setTitle(song.title)
                 .setItems(new String[]{"Add to playlist", "Play next", "Add to queue",
                         "Start radio", "Preview 15s", "Set as ringtone", "Share",
-                        "Rate", "Edit tags", "Find cover art online",
+                        "Rate", "Edit tags", "Cut audio", "Find cover art online",
                         "Delete from device"}, (d, w) -> {
                     if (w == 0) {
                         showAddToPlaylistDialog(song);
@@ -3491,6 +3491,8 @@ public class MainActivity extends Activity implements Player.Listener {
                     } else if (w == 8) {
                         openTagEditor(song);
                     } else if (w == 9) {
+                        showCutDialog(song);
+                    } else if (w == 10) {
                         findCoverOnline(song);
                     } else {
                         confirmDelete(song);
@@ -3837,6 +3839,182 @@ public class MainActivity extends Activity implements Player.Listener {
         Song cur = Player.get().current();
         if (cur != null && cur.id == song.id) refreshNowPlaying();
         toast("Tags saved");
+    }
+
+    // ----- audio cut (MP3 frame cut, no re-encode, original untouched) -----
+
+    private void showCutDialog(Song song) {
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int) dp(16);
+        root.setPadding(pad, pad / 2, pad, pad / 2);
+
+        root.addView(tagLabel("Start (m:ss)"));
+        EditText startIn = tagInput("0:00", false);
+        root.addView(startIn);
+        root.addView(tagLabel("End (m:ss)"));
+        EditText endIn = tagInput(Song.formatTime(song.durationMs), false);
+        root.addView(endIn);
+
+        android.widget.RadioGroup modeGroup = new android.widget.RadioGroup(this);
+        android.widget.RadioButton keepBtn = new android.widget.RadioButton(this);
+        keepBtn.setText("Keep this part");
+        keepBtn.setChecked(true);
+        android.widget.RadioButton removeBtn = new android.widget.RadioButton(this);
+        removeBtn.setText("Remove this part");
+        modeGroup.addView(keepBtn);
+        modeGroup.addView(removeBtn);
+        root.addView(modeGroup);
+
+        TextView note = new TextView(this);
+        note.setText("MP3 only for now. The original is never touched — the cut is saved as a new file in Music/SpotPlayer.");
+        note.setTextColor(getColor(R.color.spotify_gray));
+        root.addView(note);
+
+        new AlertDialog.Builder(this)
+                .setTitle("Cut audio")
+                .setView(root)
+                .setPositiveButton("Cut", (d, w) -> collectAndCut(song, startIn, endIn,
+                        removeBtn.isChecked()))
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    /** Parses "m:ss", "mm:ss" or plain seconds. Returns -1 on bad input. */
+    private long parseTimeMs(String s) {
+        if (s == null) return -1;
+        s = s.trim();
+        if (s.isEmpty()) return -1;
+        try {
+            if (s.contains(":")) {
+                String[] parts = s.split(":");
+                if (parts.length != 2) return -1;
+                long m = Long.parseLong(parts[0].trim());
+                long sec = Long.parseLong(parts[1].trim());
+                if (m < 0 || sec < 0 || sec >= 60) return -1;
+                return (m * 60 + sec) * 1000;
+            }
+            long ms = (long) (Double.parseDouble(s) * 1000);
+            return ms < 0 ? -1 : ms;
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
+
+    private void collectAndCut(Song song, EditText startIn, EditText endIn,
+                               boolean removeMode) {
+        long startMs = parseTimeMs(startIn.getText().toString());
+        long endMs = parseTimeMs(endIn.getText().toString());
+        if (startMs < 0 || endMs < 0) {
+            toast("Enter times like 1:23");
+            return;
+        }
+        if (endMs <= startMs) {
+            toast("End must be after start");
+            return;
+        }
+        if (endMs > song.durationMs) {
+            toast("End is past the song length (" + Song.formatTime(song.durationMs) + ")");
+            return;
+        }
+        if (removeMode && startMs <= 0 && endMs >= song.durationMs) {
+            toast("That would remove the whole song");
+            return;
+        }
+        cutAudio(song, startMs, endMs, removeMode);
+    }
+
+    private void cutAudio(Song song, long startMs, long endMs, boolean removeMode) {
+        toast("Cutting…");
+        new Thread(() -> {
+            java.io.File tmp = new java.io.File(getExternalCacheDir(),
+                    "cut_" + song.id + ".tmp");
+            try {
+                // Read the whole file into memory (cap 64 MB; anything
+                // bigger is refused rather than risking an OOM kill).
+                java.io.ByteArrayOutputStream bos = new java.io.ByteArrayOutputStream();
+                try (java.io.InputStream in = getContentResolver().openInputStream(song.uri)) {
+                    if (in == null) { toast("Couldn't open the file"); return; }
+                    byte[] buf = new byte[65536];
+                    int n;
+                    while ((n = in.read(buf)) > 0) {
+                        bos.write(buf, 0, n);
+                        if (bos.size() > 64 * 1024 * 1024) {
+                            toast("File too large to cut on-device");
+                            return;
+                        }
+                    }
+                }
+                byte[] src = bos.toByteArray();
+                AudioCutter.Parsed p;
+                try {
+                    p = AudioCutter.parse(src);
+                } catch (IllegalArgumentException e) {
+                    toast("Couldn't cut this file (MP3 only for now)");
+                    return;
+                }
+                double expected = AudioCutter.expectedMs(p, startMs, endMs, removeMode);
+                if (expected <= 0) { toast("Nothing to keep"); return; }
+                try (java.io.OutputStream out = new java.io.FileOutputStream(tmp)) {
+                    AudioCutter.writeCut(p, src, startMs, endMs, removeMode, out);
+                } catch (IllegalArgumentException e) {
+                    tmp.delete();
+                    toast("Nothing to keep");
+                    return;
+                }
+                // Verify by re-parsing the cut before publishing it.
+                byte[] cutBytes;
+                try (java.io.InputStream vin = new java.io.FileInputStream(tmp)) {
+                    java.io.ByteArrayOutputStream vbos = new java.io.ByteArrayOutputStream();
+                    byte[] buf = new byte[65536];
+                    int n;
+                    while ((n = vin.read(buf)) > 0) vbos.write(buf, 0, n);
+                    cutBytes = vbos.toByteArray();
+                }
+                AudioCutter.Parsed v;
+                try {
+                    v = AudioCutter.parse(cutBytes);
+                } catch (IllegalArgumentException e) {
+                    tmp.delete();
+                    toast("Verification failed — original file untouched");
+                    return;
+                }
+                if (v.frameCount() == 0
+                        || Math.abs(v.totalMs - expected) > 150) {
+                    tmp.delete();
+                    toast("Verification failed — original file untouched");
+                    return;
+                }
+                String name = AudioCutter.sanitizeFileName(song.title) + " (cut).mp3";
+                android.content.ContentValues values = new android.content.ContentValues();
+                values.put(android.provider.MediaStore.Audio.Media.DISPLAY_NAME, name);
+                values.put(android.provider.MediaStore.Audio.Media.MIME_TYPE, "audio/mpeg");
+                values.put(android.provider.MediaStore.Audio.Media.RELATIVE_PATH,
+                        "Music/SpotPlayer");
+                android.net.Uri uri = getContentResolver().insert(
+                        android.provider.MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values);
+                if (uri == null) {
+                    tmp.delete();
+                    toast("Couldn't create the output file");
+                    return;
+                }
+                try (java.io.InputStream in = new java.io.FileInputStream(tmp);
+                     java.io.OutputStream out = getContentResolver().openOutputStream(uri)) {
+                    if (out == null) throw new java.io.IOException("no output stream");
+                    byte[] buf = new byte[65536];
+                    int n;
+                    while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                }
+                tmp.delete();
+                runOnUiThread(() -> {
+                    initLibrary();
+                    toast("Saved to Music/SpotPlayer — " + name);
+                });
+            } catch (Exception e) {
+                tmp.delete();
+                toast("Couldn't cut the audio");
+            }
+        }).start();
     }
 
     private String queryPath(android.net.Uri uri) {
