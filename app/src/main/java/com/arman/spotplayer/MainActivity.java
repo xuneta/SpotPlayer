@@ -531,6 +531,7 @@ public class MainActivity extends Activity implements Player.Listener {
     private List<Lyrics.Line> lyricLines;
     private long lyricSongId = -1;
     private int lyricHighlight = -2;
+    private android.animation.ValueAnimator lyricFade;
     private ArrayAdapter<String> groupAdapter;
     private List<String> groupNames;
     private Map<String, List<Song>> groupMapCache;
@@ -4094,6 +4095,7 @@ public class MainActivity extends Activity implements Player.Listener {
     }
 
     private void closeLyrics() {
+        if (lyricFade != null) lyricFade.cancel();
         lyricsView.animate().alpha(0f).translationY(dp(700)).setDuration(380)
                 .setInterpolator(new android.view.animation.PathInterpolator(0.3f, 0f, 1f, 1f))
                 .withEndAction(() -> {
@@ -4107,6 +4109,7 @@ public class MainActivity extends Activity implements Player.Listener {
     private void loadLyricsFor(Song s) {
         lyricSongId = s.id;
         lyricHighlight = -2;
+        if (lyricFade != null) lyricFade.cancel();
         lyricLines = null;
         lyricsSong.setText(s.title + " — " + s.artist);
         lyricsText.setText("Loading…");
@@ -4147,17 +4150,30 @@ public class MainActivity extends Activity implements Player.Listener {
     }
 
     private void renderLyrics(int current) {
+        renderLyricsFade(current, current, 1f);
+    }
+
+    // Karaoke line highlight — active line green, others dimmed.
+    // During a fade, `from` blends green->dim while `to` blends dim->green.
+    private void renderLyricsFade(int from, int to, float frac) {
         if (lyricLines == null) return;
+        int green = getColor(R.color.spotify_green);
+        int dim = getColor(R.color.spotify_midgray);
+        android.animation.ArgbEvaluator eval = new android.animation.ArgbEvaluator();
         android.text.SpannableStringBuilder sb = new android.text.SpannableStringBuilder();
         for (int i = 0; i < lyricLines.size(); i++) {
             int start = sb.length();
             sb.append(lyricLines.get(i).text);
-            if (i == current) {
-                sb.setSpan(new android.text.style.ForegroundColorSpan(
-                                getColor(R.color.spotify_green)),
+            if (to >= 0) {
+                int color = dim;
+                if (i == to) color = (Integer) eval.evaluate(frac, dim, green);
+                else if (i == from && from != to) color = (Integer) eval.evaluate(frac, green, dim);
+                sb.setSpan(new android.text.style.ForegroundColorSpan(color),
                         start, sb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                sb.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
-                        start, sb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                if (i == to) {
+                    sb.setSpan(new android.text.style.StyleSpan(android.graphics.Typeface.BOLD),
+                            start, sb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
             }
             if (i < lyricLines.size() - 1) sb.append("\n");
         }
@@ -4174,8 +4190,25 @@ public class MainActivity extends Activity implements Player.Listener {
             else break;
         }
         if (cur != lyricHighlight) {
+            int prev = lyricHighlight;
             lyricHighlight = cur;
-            renderLyrics(cur);
+            if (lyricFade != null) lyricFade.cancel();
+            if (prev >= 0 && cur >= 0) {
+                final int fadeFrom = prev;
+                final int fadeTo = cur;
+                lyricFade = android.animation.ValueAnimator.ofFloat(0f, 1f);
+                lyricFade.setDuration(300);
+                lyricFade.addUpdateListener(a ->
+                        renderLyricsFade(fadeFrom, fadeTo, (Float) a.getAnimatedValue()));
+                lyricFade.addListener(new android.animation.AnimatorListenerAdapter() {
+                    @Override public void onAnimationEnd(android.animation.Animator a) {
+                        if (lyricHighlight == fadeTo) renderLyrics(fadeTo);
+                    }
+                });
+                lyricFade.start();
+            } else {
+                renderLyrics(cur);
+            }
             if (cur >= 0 && lyricsText.getLayout() != null) {
                 int y = lyricsText.getLayout().getLineTop(cur) - (int) dp(120);
                 lyricsScroll.smoothScrollTo(0, Math.max(0, y));
